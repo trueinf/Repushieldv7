@@ -2,21 +2,20 @@
 # Netlify build script to prevent yarn workspace detection
 set -e
 
-# Remove backend to prevent workspace detection
-echo "Removing backend directory to prevent yarn workspace detection..."
+echo "=== Netlify Build Script ==="
+echo "Removing backend to prevent workspace detection..."
 rm -rf backend
 
-# Remove root package.json workspaces temporarily
-echo "Temporarily disabling workspaces in root package.json..."
+echo "Replacing package.json with Netlify version (no workspaces)..."
 if [ -f package.json ]; then
-  # Create backup
-  cp package.json package.json.backup
-  # Remove workspaces field using node or sed
-  node -e "const pkg = require('./package.json'); delete pkg.workspaces; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+  cp package.json package.json.original
+  cp package.netlify.json package.json
 fi
 
-# Now run the frontend build
+echo "Building frontend..."
 cd frontend
 npm install
 npm run build
+
+echo "=== Build Complete ==="
 
