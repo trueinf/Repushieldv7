@@ -3,12 +3,6 @@
   publish = "frontend/dist"
   base = "."
 
-[build.environment]
-  NODE_VERSION = "20"
-  NPM_FLAGS = "--legacy-peer-deps"
-  NETLIFY_USE_NPM = "true"
-  NETLIFY_SKIP_DEPENDENCY_INSTALL = "true"
-
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -18,3 +12,4 @@
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
   NETLIFY_USE_NPM = "true"
+  NETLIFY_SKIP_DEPENDENCY_INSTALL = "true"
