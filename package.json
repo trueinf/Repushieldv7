@@ -12,8 +12,10 @@
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
     "dev:all": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "build": "npm run build --workspace=frontend",
+    "build": "cd backend && npm install --legacy-peer-deps && npm run build",
+    "build:frontend": "npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend",
+    "start": "cd backend && npm start",
     "install:all": "npm install && npm install --workspace=frontend && npm install --workspace=backend"
   },
   "devDependencies": {
