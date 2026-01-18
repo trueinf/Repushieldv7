@@ -3,6 +3,11 @@
   publish = "frontend/dist"
   base = "."
 
+# Explicitly disable Next.js plugin (this is a Vite app)
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+  enabled = false
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
