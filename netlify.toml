@@ -13,3 +13,4 @@
   NPM_FLAGS = "--legacy-peer-deps"
   NETLIFY_USE_NPM = "true"
   NETLIFY_SKIP_DEPENDENCY_INSTALL = "true"
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
