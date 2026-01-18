@@ -1,8 +1,7 @@
 [build]
-  command = "cd frontend && npm install && npm run build"
+  command = "bash netlify-build.sh"
   publish = "frontend/dist"
-  base = "frontend"
-  ignore = "git diff --quiet HEAD^ HEAD ."
+  base = "."
 
 [[redirects]]
   from = "/*"
