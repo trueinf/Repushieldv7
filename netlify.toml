@@ -12,4 +12,3 @@
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
   NETLIFY_USE_NPM = "true"
-
