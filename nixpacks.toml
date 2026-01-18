@@ -1,6 +1,3 @@
-[providers]
-node = "20"
-
 [phases.setup]
 nixPkgs = ["nodejs_20"]
 
@@ -12,4 +9,3 @@ cmds = ["cd backend && npm run build"]
 
 [start]
 cmd = "cd backend && npm start"
-
