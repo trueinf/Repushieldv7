@@ -1,5 +1,5 @@
 [build]
-  command = "cd frontend && npm ci && npm run build"
+  command = "cd frontend && rm -rf ../backend && npm install && npm run build"
   publish = "frontend/dist"
   base = "frontend"
 
@@ -14,5 +14,6 @@
   NPM_CONFIG_PRODUCTION = "false"
   YARN_ENABLE_IMMUTABLE_INSTALLS = "false"
   YARN_ENABLE_GLOBAL_CACHE = "false"
+  DISABLE_YARN_WORKSPACES = "true"
 
 
