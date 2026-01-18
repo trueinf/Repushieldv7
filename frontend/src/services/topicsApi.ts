@@ -72,7 +72,12 @@ export const topicsApi = {
 
     // Use fetch directly to get full response with count
     const endpoint = `/topics?${queryParams.toString()}`;
-    const url = `${import.meta.env.VITE_API_URL || '/api'}${endpoint}`;
+    const baseUrl = import.meta.env.VITE_API_URL || '/api';
+    // Ensure /api is appended to full URLs
+    const apiBaseUrl = baseUrl.startsWith('http') 
+      ? (baseUrl.endsWith('/api') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/api`)
+      : baseUrl;
+    const url = `${apiBaseUrl}${endpoint}`;
     const response = await fetch(url);
     const result: TopicsResponse = await response.json();
     
