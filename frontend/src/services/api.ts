@@ -1,4 +1,18 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Ensure API_BASE_URL always ends with /api
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) return '/api';
+  
+  // If it's a full URL, ensure it ends with /api
+  if (envUrl.startsWith('http')) {
+    return envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/$/, '')}/api`;
+  }
+  
+  // If it's a relative path, use as is
+  return envUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface ApiResponse<T> {
   success: boolean;
