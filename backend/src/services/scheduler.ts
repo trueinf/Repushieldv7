@@ -5,10 +5,15 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+type MonitoringStatus = 'running' | 'paused' | 'stopped';
+
 export class PostFetchScheduler {
   private orchestrator: AgentOrchestrator;
   private intervalMinutes: number;
   private cronJob: cron.ScheduledTask | null = null;
+  private status: MonitoringStatus = 'running';
+  private lastRunTime: Date | null = null;
+  private nextRunTime: Date | null = null;
 
   constructor(
     rapidApiKey: string,
@@ -21,21 +26,66 @@ export class PostFetchScheduler {
   }
 
   start(): void {
+    if (this.status === 'stopped') {
+      this.status = 'running';
+    }
+    
+    if (this.cronJob) {
+      this.cronJob.stop();
+    }
+    
     const cronExpression = `*/${this.intervalMinutes} * * * *`;
 
     this.cronJob = cron.schedule(cronExpression, async () => {
-      console.log(`[Scheduler] Running fetch job at ${new Date().toISOString()}`);
-      await this.fetchAllActiveConfigurations();
+      if (this.status === 'running') {
+        console.log(`[Scheduler] Running fetch job at ${new Date().toISOString()}`);
+        this.lastRunTime = new Date();
+        this.calculateNextRunTime();
+        await this.fetchAllActiveConfigurations();
+      } else {
+        console.log(`[Scheduler] Skipped - Status: ${this.status}`);
+      }
     });
 
-    console.log(`[Scheduler] Started. Fetching every ${this.intervalMinutes} minutes.`);
+    this.calculateNextRunTime();
+    console.log(`[Scheduler] Started. Fetching every ${this.intervalMinutes} minutes. Status: ${this.status}`);
+  }
+
+  pause(): void {
+    this.status = 'paused';
+    console.log('[Scheduler] Paused. Monitoring will skip scheduled runs.');
+  }
+
+  resume(): void {
+    this.status = 'running';
+    this.calculateNextRunTime();
+    console.log('[Scheduler] Resumed. Monitoring will continue.');
   }
 
   stop(): void {
+    this.status = 'stopped';
     if (this.cronJob) {
       this.cronJob.stop();
       this.cronJob = null;
-      console.log('[Scheduler] Stopped.');
+    }
+    console.log('[Scheduler] Stopped.');
+  }
+
+  getStatus(): { status: MonitoringStatus; lastRunTime: Date | null; nextRunTime: Date | null; intervalMinutes: number } {
+    return {
+      status: this.status,
+      lastRunTime: this.lastRunTime,
+      nextRunTime: this.nextRunTime,
+      intervalMinutes: this.intervalMinutes,
+    };
+  }
+
+  private calculateNextRunTime(): void {
+    if (this.status === 'running' && this.intervalMinutes > 0) {
+      const now = new Date();
+      this.nextRunTime = new Date(now.getTime() + this.intervalMinutes * 60 * 1000);
+    } else {
+      this.nextRunTime = null;
     }
   }
 

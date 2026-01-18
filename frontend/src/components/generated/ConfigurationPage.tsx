@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Building2, Flag, Briefcase, Check, ChevronRight, ChevronLeft, Twitter, Youtube, Facebook, Globe, Hash, Plus, X, AlertCircle, Sparkles, CheckCircle2, Edit2, Loader2 } from 'lucide-react';
+import { User, Building2, Flag, Briefcase, Check, ChevronRight, ChevronLeft, Twitter, Youtube, Facebook, Globe, Hash, Plus, X, AlertCircle, Sparkles, CheckCircle2, Edit2, Loader2, Play, Pause, Square } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { ConfigurationApi, type Configuration, type EntityType, type EntityDetails, type OntologyData, type PlatformConfig } from '../../services/configurationApi';
+import { monitoringApi, type MonitoringStatus } from '../../services/monitoringApi';
 
 // Types
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -369,7 +370,7 @@ export const ConfigurationPage = ({ onActivate }: { onActivate?: () => void }) =
   return <div className="flex-1 overflow-y-auto bg-[#F8FAFC] p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-[#0F1C2E] mb-3">
             Configuration Wizard
           </h1>
@@ -377,6 +378,94 @@ export const ConfigurationPage = ({ onActivate }: { onActivate?: () => void }) =
             Set up your entity and monitoring parameters in a few simple steps. 
             This configuration will power all intelligence across RepuShield.
           </p>
+        </div>
+
+        {/* Monitoring Control Panel */}
+        <div className="mb-8 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#0F1C2E] mb-1">Monitoring Control</h2>
+              <p className="text-sm text-gray-500">Manage the automated post fetching scheduler</p>
+            </div>
+            {monitoringStatus && (
+              <div className={cn(
+                "px-4 py-2 rounded-lg font-semibold text-sm",
+                monitoringStatus.status === 'running' && "bg-green-50 text-green-700",
+                monitoringStatus.status === 'paused' && "bg-yellow-50 text-yellow-700",
+                monitoringStatus.status === 'stopped' && "bg-red-50 text-red-700"
+              )}>
+                {monitoringStatus.status === 'running' && '● Running'}
+                {monitoringStatus.status === 'paused' && '⏸ Paused'}
+                {monitoringStatus.status === 'stopped' && '■ Stopped'}
+              </div>
+            )}
+          </div>
+
+          {monitoringStatus && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-sm">
+              <div>
+                <span className="text-gray-500">Interval:</span>
+                <span className="ml-2 font-semibold">{monitoringStatus.intervalMinutes} minutes</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Last Run:</span>
+                <span className="ml-2 font-semibold">
+                  {monitoringStatus.lastRunTime 
+                    ? new Date(monitoringStatus.lastRunTime).toLocaleString()
+                    : 'Never'}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">Next Run:</span>
+                <span className="ml-2 font-semibold">
+                  {monitoringStatus.nextRunTime 
+                    ? new Date(monitoringStatus.nextRunTime).toLocaleString()
+                    : 'N/A'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            {monitoringStatus?.status === 'running' ? (
+              <button
+                onClick={handlePauseMonitoring}
+                disabled={monitoringLoading}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {monitoringLoading ? <Loader2 size={16} className="animate-spin" /> : <Pause size={16} />}
+                Pause Monitoring
+              </button>
+            ) : monitoringStatus?.status === 'paused' ? (
+              <>
+                <button
+                  onClick={handleResumeMonitoring}
+                  disabled={monitoringLoading}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {monitoringLoading ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                  Resume Monitoring
+                </button>
+                <button
+                  onClick={handleStopMonitoring}
+                  disabled={monitoringLoading}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {monitoringLoading ? <Loader2 size={16} className="animate-spin" /> : <Square size={16} />}
+                  Stop Monitoring
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleResumeMonitoring}
+                disabled={monitoringLoading}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {monitoringLoading ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                Start Monitoring
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Error Message */}

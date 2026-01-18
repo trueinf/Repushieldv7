@@ -6,6 +6,7 @@ import postsRoutes from './routes/postsRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import topicsRoutes from './routes/topicsRoutes.js';
 import narrativesRoutes from './routes/narrativesRoutes.js';
+import monitoringRoutes, { setSchedulerInstance } from './routes/monitoringRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { PostFetchScheduler } from './services/scheduler.js';
 import { supabase } from './config/supabase.js';
@@ -78,11 +79,13 @@ app.use('/api/posts', postsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/topics', topicsRoutes);
 app.use('/api/narratives', narrativesRoutes);
+app.use('/api/monitoring', monitoringRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
 
 const scheduler = new PostFetchScheduler(RAPIDAPI_KEY, SERPAPI_KEY, OPENAI_API_KEY || '', FETCH_INTERVAL);
+setSchedulerInstance(scheduler);
 scheduler.start();
 
 app.listen(PORT, () => {
