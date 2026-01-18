@@ -1,4 +1,4 @@
-import { RapidApiClient } from './rapidApiClient';
+import { RapidApiClient } from './rapidApiClient.js';
 
 export interface RedditPost {
   id: string;

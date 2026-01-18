@@ -1,6 +1,6 @@
-import { BaseAgent, AgentResult } from './baseAgent';
-import { Configuration } from '../types/configuration';
-import { supabase } from '../config/supabase';
+import { BaseAgent, AgentResult } from './baseAgent.js';
+import { Configuration } from '../types/configuration.js';
+import { supabase } from '../config/supabase.js';
 import OpenAI from 'openai';
 import { GroupingService } from '../services/groupingService.js';
 

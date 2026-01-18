@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { supabase } from '../config/supabase';
-import { TranslationService } from '../services/translationService';
+import { supabase } from '../config/supabase.js';
+import { TranslationService } from '../services/translationService.js';
 import dotenv from 'dotenv';
 
 dotenv.config();

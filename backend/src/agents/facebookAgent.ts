@@ -1,7 +1,7 @@
-import { BaseAgent, AgentResult } from './baseAgent';
-import { FacebookApi, FacebookPost } from '../services/apiClients/facebookApi';
-import { PostStorage } from '../services/postStorage';
-import { Configuration } from '../types/configuration';
+import { BaseAgent, AgentResult } from './baseAgent.js';
+import { FacebookApi, FacebookPost } from '../services/apiClients/facebookApi.js';
+import { PostStorage } from '../services/postStorage.js';
+import { Configuration } from '../types/configuration.js';
 
 export class FacebookAgent extends BaseAgent {
   private api: FacebookApi;

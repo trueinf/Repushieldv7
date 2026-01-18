@@ -1,5 +1,5 @@
-import { Configuration } from '../types/configuration';
-import { FilterCriteria, matchesFilterCriteria, buildSearchQuery } from '../utils/filterUtils';
+import { Configuration } from '../types/configuration.js';
+import { FilterCriteria, matchesFilterCriteria, buildSearchQuery } from '../utils/filterUtils.js';
 
 export interface AgentResult {
   platform: string;

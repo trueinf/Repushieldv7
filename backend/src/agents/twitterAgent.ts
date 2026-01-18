@@ -1,7 +1,7 @@
-import { BaseAgent, AgentResult } from './baseAgent';
-import { TwitterApi, TwitterPost } from '../services/apiClients/twitterApi';
-import { PostStorage } from '../services/postStorage';
-import { Configuration } from '../types/configuration';
+import { BaseAgent, AgentResult } from './baseAgent.js';
+import { TwitterApi, TwitterPost } from '../services/apiClients/twitterApi.js';
+import { PostStorage } from '../services/postStorage.js';
+import { Configuration } from '../types/configuration.js';
 
 export class TwitterAgent extends BaseAgent {
   private api: TwitterApi;

@@ -1,8 +1,8 @@
-import { supabase } from '../config/supabase';
-import { TwitterPost } from './apiClients/twitterApi';
-import { RedditPost } from './apiClients/redditApi';
-import { FacebookPost } from './apiClients/facebookApi';
-import { NewsArticle } from './apiClients/newsApi';
+import { supabase } from '../config/supabase.js';
+import { TwitterPost } from './apiClients/twitterApi.js';
+import { RedditPost } from './apiClients/redditApi.js';
+import { FacebookPost } from './apiClients/facebookApi.js';
+import { NewsArticle } from './apiClients/newsApi.js';
 
 export interface StoredPost {
   platform: 'twitter' | 'reddit' | 'facebook' | 'news';

@@ -1,6 +1,6 @@
 import cron from 'node-cron';
-import { ConfigurationService } from './configurationService';
-import { AgentOrchestrator } from './agentOrchestrator';
+import { ConfigurationService } from './configurationService.js';
+import { AgentOrchestrator } from './agentOrchestrator.js';
 import dotenv from 'dotenv';
 
 dotenv.config();

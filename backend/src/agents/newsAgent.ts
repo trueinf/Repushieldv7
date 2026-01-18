@@ -1,7 +1,7 @@
-import { BaseAgent, AgentResult } from './baseAgent';
-import { NewsApi, NewsArticle } from '../services/apiClients/newsApi';
-import { PostStorage } from '../services/postStorage';
-import { Configuration } from '../types/configuration';
+import { BaseAgent, AgentResult } from './baseAgent.js';
+import { NewsApi, NewsArticle } from '../services/apiClients/newsApi.js';
+import { PostStorage } from '../services/postStorage.js';
+import { Configuration } from '../types/configuration.js';
 
 export class NewsAgent extends BaseAgent {
   private api: NewsApi;

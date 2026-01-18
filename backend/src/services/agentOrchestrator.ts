@@ -1,12 +1,12 @@
-import { Configuration } from '../types/configuration';
-import { TwitterAgent } from '../agents/twitterAgent';
-import { RedditAgent } from '../agents/redditAgent';
-import { FacebookAgent } from '../agents/facebookAgent';
-import { NewsAgent } from '../agents/newsAgent';
-import { RiskScoringAgent } from '../agents/riskScoringAgent';
-import { FactCheckingAgent } from '../agents/factCheckingAgent';
-import { AgentResult } from '../agents/baseAgent';
-import { supabase } from '../config/supabase';
+import { Configuration } from '../types/configuration.js';
+import { TwitterAgent } from '../agents/twitterAgent.js';
+import { RedditAgent } from '../agents/redditAgent.js';
+import { FacebookAgent } from '../agents/facebookAgent.js';
+import { NewsAgent } from '../agents/newsAgent.js';
+import { RiskScoringAgent } from '../agents/riskScoringAgent.js';
+import { FactCheckingAgent } from '../agents/factCheckingAgent.js';
+import { AgentResult } from '../agents/baseAgent.js';
+import { supabase } from '../config/supabase.js';
 
 export interface OrchestrationResult {
   configurationId: string;

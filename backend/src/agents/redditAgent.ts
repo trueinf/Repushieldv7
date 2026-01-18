@@ -1,7 +1,7 @@
-import { BaseAgent, AgentResult } from './baseAgent';
-import { RedditApi, RedditPost } from '../services/apiClients/redditApi';
-import { PostStorage } from '../services/postStorage';
-import { Configuration } from '../types/configuration';
+import { BaseAgent, AgentResult } from './baseAgent.js';
+import { RedditApi, RedditPost } from '../services/apiClients/redditApi.js';
+import { PostStorage } from '../services/postStorage.js';
+import { Configuration } from '../types/configuration.js';
 
 export class RedditAgent extends BaseAgent {
   private api: RedditApi;
