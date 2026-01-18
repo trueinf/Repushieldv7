@@ -89,29 +89,35 @@ const SENTIMENT_DATA = [{
   neutral: 20,
   negative: 10
 }];
-const TOP_NARRATIVES = [{
+const TOP_NARRATIVES: Array<{
+  id: number;
+  title: string;
+  volume: number;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  change: string;
+}> = [{
   id: 1,
   title: "Product Reliability Issues",
   volume: 1250,
-  sentiment: 'negative',
+  sentiment: 'negative' as const,
   change: '+12%'
 }, {
   id: 2,
   title: "CEO Thought Leadership",
   volume: 850,
-  sentiment: 'positive',
+  sentiment: 'positive' as const,
   change: '+5%'
 }, {
   id: 3,
   title: "Market Expansion Rumors",
   volume: 2100,
-  sentiment: 'neutral',
+  sentiment: 'neutral' as const,
   change: '+45%'
 }, {
   id: 4,
   title: "Sustainability Initiatives",
   volume: 620,
-  sentiment: 'positive',
+  sentiment: 'positive' as const,
   change: '-2%'
 }];
 const COLORS = {
