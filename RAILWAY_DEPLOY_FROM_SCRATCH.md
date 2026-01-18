@@ -84,27 +84,27 @@ This is the most important step! Without these, your backend won't work.
 
 ### Variable 3: RAPIDAPI_KEY
 - **Name**: `RAPIDAPI_KEY`
-- **Value**: `f9513d88bemsh78000d428cce2d3p1d08e5jsn328d2231f921`
+- **Value**: `your_rapidapi_key_here`
 - Click **"Add"**
 
 ### Variable 4: SERPAPI_KEY
 - **Name**: `SERPAPI_KEY`
-- **Value**: `fa9960c5ac91ca0381fea345d0a164abb8a3f22b0ca4626fcf4eeffb88b4401d`
+- **Value**: `your_serpapi_key_here`
 - Click **"Add"**
 
 ### Variable 5: OPENAI_API_KEY
 - **Name**: `OPENAI_API_KEY`
-- **Value**: `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`
+- **Value**: `your_openai_api_key_here`
 - Click **"Add"**
 
 ### Variable 6: SUPABASE_URL
 - **Name**: `SUPABASE_URL`
-- **Value**: `https://jlmcpkihlirppsaqehaq.supabase.co`
+- **Value**: `https://your-project.supabase.co`
 - Click **"Add"**
 
 ### Variable 7: SUPABASE_SERVICE_ROLE_KEY
 - **Name**: `SUPABASE_SERVICE_ROLE_KEY`
-- **Value**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsbWNwa2lobGlycHBzYXFlaGFxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTkwNjkxNCwiZXhwIjoyMDc3NDgyOTE0fQ.FLSMP2CWFlKBYq9o6U52pBGX8wg4-EFyRoI7cevEymk`
+- **Value**: `your_supabase_service_role_key_here`
 - Click **"Add"**
 
 ### Variable 8: FRONTEND_URL

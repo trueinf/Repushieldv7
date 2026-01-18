@@ -20,7 +20,7 @@
 
 ### Step 1: Run SQL Schema in Supabase
 
-1. Go to your Supabase project: https://jlmcpkihlirppsaqehaq.supabase.co
+1. Go to your Supabase project: https://your-project.supabase.co
 2. Navigate to SQL Editor
 3. Run the SQL from `server/src/database/schema.sql`
 
