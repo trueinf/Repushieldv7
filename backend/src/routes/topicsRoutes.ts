@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
 
     // Sorting
     const validSortFields = ['last_updated_at', 'average_risk_score', 'post_count', 'first_detected_at'];
-    const sortField = validSortFields.includes(sort_by as string) ? sort_by : 'last_updated_at';
+    const sortField = validSortFields.includes(sort_by as string) ? (sort_by as string) : 'last_updated_at';
     query = query.order(sortField, { ascending: order === 'asc' });
 
     const { data: topics, error } = await query;
