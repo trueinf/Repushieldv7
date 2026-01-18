@@ -1,7 +1,14 @@
 [build]
-  command = "bash netlify-build.sh"
+  command = "cd frontend && npm install && npm run build"
   publish = "frontend/dist"
-  base = "."
+  base = "frontend"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+  NETLIFY_USE_NPM = "true"
+  NETLIFY_NPM_BUILD_COMMAND = "npm run build"
+  NETLIFY_NPM_PUBLISH_DIR = "dist"
 
 [[redirects]]
   from = "/*"
