@@ -50,6 +50,7 @@ export interface NarrativesResponse {
   success: boolean;
   data: Narrative[];
   count: number;
+  error?: string;
 }
 
 export const narrativesApi = {

@@ -46,6 +46,7 @@ export interface TopicsResponse {
   success: boolean;
   data: Topic[];
   count: number;
+  error?: string;
 }
 
 export const topicsApi = {

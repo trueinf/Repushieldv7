@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, X as XIcon, TrendingUp, TrendingDown, Calendar, ChevronDown, Filter, AlertTriangle, Eye, MoreVertical, ChevronRight, Target, Layers, Zap, Clock, MapPin, Users, Activity, BookOpen, Lightbulb, Shield, FileText, ArrowUpRight, ArrowDownRight, Sparkles, CheckCircle, Bell, Ban, MessageSquare, BarChart2, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { narrativesApi, Narrative } from '../../services/narrativesApi';
+import { narrativesApi, type Narrative as NarrativeApiType } from '../../services/narrativesApi';
 import { ConfigurationApi } from '../../services/configurationApi';
 
 // Types

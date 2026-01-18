@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, X as XIcon, TrendingUp, TrendingDown, Clock, Calendar, ChevronDown, Filter, Sparkles, ArrowUpRight, ArrowDownRight, MessageSquare, Globe, BarChart2, AlertTriangle, Eye, StickyNote, Bell, CheckCircle, MoreVertical, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { topicsApi, Topic } from '../../services/topicsApi';
+import { topicsApi, Topic as TopicType } from '../../services/topicsApi';
 import { ConfigurationApi } from '../../services/configurationApi';
 
 // Types

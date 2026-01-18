@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X as XIcon, Facebook, MessageSquare, Globe, TrendingUp, Clock, ThumbsUp, Share2, MessageCircle, ChevronRight, MoreVertical, Filter, Calendar, Eye, ChevronDown, Zap, BarChart2, Loader2, RefreshCw, Rss, Languages, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Search, X as XIcon, Facebook, MessageSquare, Globe, TrendingUp, Clock, ThumbsUp, Share2, MessageCircle, ChevronRight, MoreVertical, Filter, Calendar, Eye, ChevronDown, Zap, BarChart2, Loader2, RefreshCw, Rss, Languages, CheckCircle, AlertTriangle, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { PostsApi, type Post } from '../../services/postsApi';
@@ -10,7 +10,7 @@ type Platform = 'twitter' | 'news' | 'facebook' | 'reddit';
 type Sentiment = 'positive' | 'neutral' | 'negative';
 type Severity = 'informational' | 'watch' | 'escalate' | 'critical';
 type SortOption = 'latest' | 'risk' | 'engagement' | 'velocity';
-type DateRange = 'today' | '24h' | '7d' | 'custom';
+type DateRange = 'today' | '24h' | '7d' | 'custom' | 'all';
 
 function mapPostToFeedPost(post: Post): FeedPost {
   const getSeverity = (riskScore?: number): Severity => {
@@ -147,6 +147,7 @@ const MOCK_POSTS: FeedPost[] = [{
   handle: '@techcrunch',
   verified: true,
   timestamp: '2m ago',
+  created_at: new Date().toISOString(),
   content: 'Breaking: RepuShield announces major partnership with Fortune 500 companies. CEO claims this will "revolutionize how enterprises manage their reputation in real-time." Industry experts skeptical about scalability claims.',
   riskScore: 8.5,
   sentiment: 'negative',
@@ -168,6 +169,7 @@ const MOCK_POSTS: FeedPost[] = [{
   source: 'Business Insider',
   verified: true,
   timestamp: '15m ago',
+  created_at: new Date(Date.now() - 15 * 60000).toISOString(),
   content: 'Opinion piece praises RepuShield\'s innovative approach to narrative tracking. "The platform has given us unprecedented visibility into how our brand is perceived across digital channels," says CMO of leading retail brand.',
   riskScore: 3.2,
   sentiment: 'positive',
@@ -190,6 +192,7 @@ const MOCK_POSTS: FeedPost[] = [{
   handle: 'u/digitalmarketer2024',
   verified: false,
   timestamp: '1h ago',
+  created_at: new Date(Date.now() - 60 * 60000).toISOString(),
   content: 'Has anyone tried RepuShield for reputation management? Considering it for our agency but the pricing seems steep compared to alternatives. Would love to hear real user experiences.',
   riskScore: 5.8,
   sentiment: 'neutral',
@@ -211,6 +214,7 @@ const MOCK_POSTS: FeedPost[] = [{
   handle: '@sarahtech',
   verified: true,
   timestamp: '2h ago',
+  created_at: new Date(Date.now() - 120 * 60000).toISOString(),
   content: 'RepuShield\'s Q3 numbers are impressive. 45% YoY growth in enterprise segment. The real-time sentiment analysis is a game changer. This is how modern reputation management should work. 🚀',
   riskScore: 2.1,
   sentiment: 'positive',
@@ -232,6 +236,7 @@ const MOCK_POSTS: FeedPost[] = [{
   source: 'Tech Reviews Daily',
   verified: true,
   timestamp: '3h ago',
+  created_at: new Date(Date.now() - 180 * 60000).toISOString(),
   content: 'Our team has been testing RepuShield for 6 months. While the narrative detection is solid, we\'ve experienced some false positives in the sentiment analysis. Customer support has been responsive though.',
   riskScore: 6.2,
   sentiment: 'neutral',
@@ -252,6 +257,7 @@ const MOCK_POSTS: FeedPost[] = [{
   source: 'Reuters',
   verified: true,
   timestamp: '5h ago',
+  created_at: new Date(Date.now() - 300 * 60000).toISOString(),
   content: 'RepuShield faces scrutiny over data privacy practices. European regulators questioning how the platform collects and processes social media data. Company spokesperson says they are "fully compliant with GDPR."',
   riskScore: 9.2,
   sentiment: 'negative',
@@ -779,10 +785,10 @@ export const FeedsPage = () => {
               label="Twitter" 
               active={filters.platforms.includes('twitter')} 
               onClick={() => {
-                const newPlatforms = filters.platforms.includes('twitter')
+                const newPlatforms = filters.platforms.includes('twitter' as Platform)
                   ? filters.platforms.filter(p => p !== 'twitter')
-                  : [...filters.platforms, 'twitter'];
-                setFilters({ ...filters, platforms: newPlatforms });
+                  : [...filters.platforms, 'twitter' as Platform];
+                setFilters({ ...filters, platforms: newPlatforms as Platform[] });
               }} 
             />
             <FilterChip 
@@ -812,10 +818,10 @@ export const FeedsPage = () => {
               label="Negative" 
               active={filters.sentiments.includes('negative')} 
               onClick={() => {
-                const newSentiments = filters.sentiments.includes('negative')
+                const newSentiments = filters.sentiments.includes('negative' as Sentiment)
                   ? filters.sentiments.filter(s => s !== 'negative')
-                  : [...filters.sentiments, 'negative'];
-                setFilters({ ...filters, sentiments: newSentiments });
+                  : [...filters.sentiments, 'negative' as Sentiment];
+                setFilters({ ...filters, sentiments: newSentiments as Sentiment[] });
               }} 
             />
             <FilterChip 
@@ -1109,12 +1115,12 @@ export const FeedsPage = () => {
                   <div className="p-4 bg-[#1F9D8A]/10 rounded-lg border border-[#1F9D8A]/20">
                     <div className="mb-3 p-3 bg-white rounded-lg border border-[#1F9D8A]/30">
                       <p className="text-sm text-gray-800 font-medium leading-relaxed">
-                        {selectedPost.factCheckData.admin_response.response_text}
+                        {selectedPost.factCheckData?.admin_response?.response_text}
                       </p>
                     </div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs text-gray-500">
-                        Character count: {selectedPost.factCheckData.admin_response.response_text.length}/280
+                        Character count: {selectedPost.factCheckData?.admin_response?.response_text?.length || 0}/280
                       </span>
                       <button
                         onClick={() => {

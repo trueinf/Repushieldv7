@@ -425,7 +425,7 @@ export const RepuShield = () => {
                           title: narrative.title,
                           volume: narrative.volume,
                           sentiment: narrative.sentiment,
-                          change: `${narrative.change >= 0 ? '+' : ''}${narrative.change.toFixed(1)}%`
+                          change: `${narrative.change >= 0 ? '+' : ''}${narrative.change.toFixed(1)}%` as string
                         }} 
                       />
                     ))
