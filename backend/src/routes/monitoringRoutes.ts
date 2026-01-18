@@ -65,7 +65,13 @@ router.post('/resume', (req, res) => {
       });
     }
 
+    const currentStatus = schedulerInstance.getStatus();
     schedulerInstance.resume();
+    
+    if (currentStatus.status === 'stopped') {
+      schedulerInstance.start();
+    }
+    
     const status = schedulerInstance.getStatus();
     
     res.json({
