@@ -795,20 +795,20 @@ export const FeedsPage = () => {
               label="News" 
               active={filters.platforms.includes('news')} 
               onClick={() => {
-                const newPlatforms = filters.platforms.includes('news')
+                const newPlatforms = filters.platforms.includes('news' as Platform)
                   ? filters.platforms.filter(p => p !== 'news')
-                  : [...filters.platforms, 'news'];
-                setFilters({ ...filters, platforms: newPlatforms });
+                  : [...filters.platforms, 'news' as Platform];
+                setFilters({ ...filters, platforms: newPlatforms as Platform[] });
               }} 
             />
             <FilterChip 
               label="Reddit" 
               active={filters.platforms.includes('reddit')} 
               onClick={() => {
-                const newPlatforms = filters.platforms.includes('reddit')
+                const newPlatforms = filters.platforms.includes('reddit' as Platform)
                   ? filters.platforms.filter(p => p !== 'reddit')
-                  : [...filters.platforms, 'reddit'];
-                setFilters({ ...filters, platforms: newPlatforms });
+                  : [...filters.platforms, 'reddit' as Platform];
+                setFilters({ ...filters, platforms: newPlatforms as Platform[] });
               }} 
             />
 
@@ -1124,7 +1124,9 @@ export const FeedsPage = () => {
                       </span>
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(selectedPost.factCheckData.admin_response.response_text);
+                          if (selectedPost.factCheckData?.admin_response?.response_text) {
+                            navigator.clipboard.writeText(selectedPost.factCheckData.admin_response.response_text);
+                          }
                         }}
                         className="text-xs text-[#1F9D8A] hover:text-[#0F1C2E] font-medium"
                       >

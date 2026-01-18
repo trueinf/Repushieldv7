@@ -147,7 +147,13 @@ const StatCard = ({
 const NarrativeRow = ({
   narrative
 }: {
-  narrative: typeof TOP_NARRATIVES[0];
+  narrative: {
+    id: string | number;
+    title: string;
+    volume: number;
+    sentiment: 'positive' | 'neutral' | 'negative';
+    change: string;
+  };
 }) => <div className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
     <div className="flex items-center space-x-4">
       <div className={cn("w-2 h-12 rounded-full", narrative.sentiment === 'positive' ? "bg-[#1F9D8A]" : narrative.sentiment === 'negative' ? "bg-[#DC2626]" : "bg-gray-300")} />
@@ -425,7 +431,7 @@ export const RepuShield = () => {
                           title: narrative.title,
                           volume: narrative.volume,
                           sentiment: narrative.sentiment,
-                          change: `${narrative.change >= 0 ? '+' : ''}${narrative.change.toFixed(1)}%` as string
+                          change: `${narrative.change >= 0 ? '+' : ''}${narrative.change.toFixed(1)}%`
                         }} 
                       />
                     ))
