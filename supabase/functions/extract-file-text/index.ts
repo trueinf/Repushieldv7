@@ -104,3 +104,8 @@ async function extractTextFromDOCX(buffer: Uint8Array): Promise<string> {
   }
 }
 
+
+
+
+
+

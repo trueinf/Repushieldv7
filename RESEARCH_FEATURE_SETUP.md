@@ -145,3 +145,8 @@ The following files have been created:
 - SerpAPI is optional - mock results will be used if not configured
 - All research data is stored in Supabase PostgreSQL database
 
+
+
+
+
+

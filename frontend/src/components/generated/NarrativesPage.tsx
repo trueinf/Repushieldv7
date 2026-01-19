@@ -536,7 +536,7 @@ const NarrativeCard = ({
     </motion.div>;
 };
 
-// Narrative Detail Side Panel
+// Narrative Detail Modal
 const NarrativeDetailPanel = ({
   narrative,
   onClose
@@ -546,19 +546,26 @@ const NarrativeDetailPanel = ({
 }) => {
   if (!narrative) return null;
   return <AnimatePresence>
-      <motion.div initial={{
-      x: '100%'
-    }} animate={{
-      x: 0
-    }} exit={{
-      x: '100%'
-    }} transition={{
-      type: 'spring',
-      damping: 25,
-      stiffness: 200
-    }} className="fixed right-0 top-0 h-full w-[520px] bg-white border-l border-gray-200 shadow-2xl z-50 overflow-y-auto">
-        {/* Panel Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
+      <>
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-black/50 z-40"
+        />
+        {/* Modal */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed inset-4 md:inset-8 lg:inset-16 z-50 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col"
+        >
+          <div className="flex-1 overflow-y-auto">
+            {/* Panel Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1 pr-4">
               <h2 className="text-xl font-bold text-[#0F1C2E] mb-3 leading-tight">{narrative.title}</h2>
@@ -575,8 +582,8 @@ const NarrativeDetailPanel = ({
           <p className="text-sm text-gray-600 leading-relaxed">{narrative.summary}</p>
         </div>
 
-        {/* Panel Content */}
-        <div className="p-6 space-y-6">
+            {/* Panel Content */}
+            <div className="p-6 space-y-6">
           {/* Narrative Overview */}
           <section>
             <h3 className="text-sm font-bold text-[#0F1C2E] uppercase tracking-wider mb-3">Overview</h3>
@@ -801,8 +808,10 @@ const NarrativeDetailPanel = ({
               </button>
             </div>
           </section>
-        </div>
-      </motion.div>
+            </div>
+          </div>
+        </motion.div>
+      </>
     </AnimatePresence>;
 };
 

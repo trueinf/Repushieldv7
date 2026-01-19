@@ -315,32 +315,31 @@ const VelocityIndicator = ({
     </div>;
 };
 
-// Sentiment Mini Bar Component
-const SentimentMiniBar = ({
-  sentiment
+// Sentiment Label Component (based on risk score)
+const SentimentLabel = ({
+  riskScore
 }: {
-  sentiment: {
-    positive: number;
-    neutral: number;
-    negative: number;
-  };
+  riskScore: number;
 }) => {
-  return <div className="flex items-center space-x-1">
-      <div className="flex h-2 w-24 rounded-full overflow-hidden bg-gray-100">
-        <div className="bg-emerald-500" style={{
-        width: `${sentiment.positive}%`
-      }} />
-        <div className="bg-gray-400" style={{
-        width: `${sentiment.neutral}%`
-      }} />
-        <div className="bg-red-500" style={{
-        width: `${sentiment.negative}%`
-      }} />
-      </div>
-      <span className="text-[10px] text-gray-500 font-medium">
-        {sentiment.positive}/{sentiment.neutral}/{sentiment.negative}
-      </span>
-    </div>;
+  let sentiment: 'positive' | 'neutral' | 'negative';
+  let colorClass: string;
+  
+  if (riskScore >= 7) {
+    sentiment = 'negative';
+    colorClass = 'bg-red-100 text-red-700 border-red-200';
+  } else if (riskScore >= 4) {
+    sentiment = 'neutral';
+    colorClass = 'bg-gray-100 text-gray-700 border-gray-200';
+  } else {
+    sentiment = 'positive';
+    colorClass = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  }
+  
+  return (
+    <span className={`px-2 py-1 rounded text-[10px] font-medium border ${colorClass}`}>
+      {sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}
+    </span>
+  );
 };
 
 // Sparkline Component
@@ -424,7 +423,7 @@ const TopicCard = ({
         
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-500 font-medium">Sentiment</span>
-          <SentimentMiniBar sentiment={topic.sentiment} />
+          <SentimentLabel riskScore={topic.riskScore} />
         </div>
 
         <div className="flex items-center justify-between">
@@ -510,7 +509,7 @@ const TopicTableRow = ({
         <RiskBadge score={topic.riskScore} />
       </td>
       <td className="px-4 py-4">
-        <SentimentMiniBar sentiment={topic.sentiment} />
+        <SentimentLabel riskScore={topic.riskScore} />
       </td>
       <td className="px-4 py-4">
         <VelocityIndicator velocity={topic.velocity} />
@@ -529,7 +528,7 @@ const TopicTableRow = ({
     </motion.tr>;
 };
 
-// Topic Detail Side Panel
+// Topic Detail Modal
 const TopicDetailPanel = ({
   topic,
   onClose
@@ -539,19 +538,26 @@ const TopicDetailPanel = ({
 }) => {
   if (!topic) return null;
   return <AnimatePresence>
-      <motion.div initial={{
-      x: '100%'
-    }} animate={{
-      x: 0
-    }} exit={{
-      x: '100%'
-    }} transition={{
-      type: 'spring',
-      damping: 25,
-      stiffness: 200
-    }} className="fixed right-0 top-0 h-full w-[480px] bg-white border-l border-gray-200 shadow-2xl z-50 overflow-y-auto">
-        {/* Panel Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
+      <>
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-black/50 z-40"
+        />
+        {/* Modal */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed inset-4 md:inset-8 lg:inset-16 z-50 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col"
+        >
+          <div className="flex-1 overflow-y-auto">
+            {/* Panel Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1 pr-4">
               <h2 className="text-xl font-bold text-[#0F1C2E] mb-2">{topic.name}</h2>
@@ -564,8 +570,8 @@ const TopicDetailPanel = ({
           <p className="text-sm text-gray-600 leading-relaxed">{topic.summary}</p>
         </div>
 
-        {/* Panel Content */}
-        <div className="p-6 space-y-6">
+            {/* Panel Content */}
+            <div className="p-6 space-y-6">
           {/* Topic Overview */}
           <section>
             <h3 className="text-sm font-bold text-[#0F1C2E] uppercase tracking-wider mb-3">Overview</h3>
@@ -740,8 +746,10 @@ const TopicDetailPanel = ({
               </button>
             </div>
           </section>
-        </div>
-      </motion.div>
+            </div>
+          </div>
+        </motion.div>
+      </>
     </AnimatePresence>;
 };
 

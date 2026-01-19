@@ -345,3 +345,8 @@ function getGeminiModelName(model: string): string {
   return modelMap[model] || "models/gemini-2.0-flash-exp";
 }
 
+
+
+
+
+

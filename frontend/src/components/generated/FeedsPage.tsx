@@ -389,28 +389,9 @@ const FeedCard = ({
   onSelect: () => void;
 }) => {
   const [showActions, setShowActions] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [translatedContent, setTranslatedContent] = useState<string | null>(null);
   const PlatformIcon = getPlatformIcon(post.platform);
   const platformColor = getPlatformColor(post.platform);
   const hasMedia = post.mediaUrls && post.mediaUrls.length > 0;
-
-  const handleTranslate = async () => {
-    if (isTranslating) return;
-    
-    setIsTranslating(true);
-    try {
-      const result = await PostsApi.translate(post.id);
-      setTranslatedContent(result.translatedText);
-      // Update the post content in the UI
-      post.content = result.translatedText;
-    } catch (error: any) {
-      console.error('Translation error:', error);
-      alert('Translation failed: ' + (error.message || 'Unknown error'));
-    } finally {
-      setIsTranslating(false);
-    }
-  };
 
   // Highlight key negative phrases
   const highlightContent = (content: string) => {
@@ -457,13 +438,8 @@ const FeedCard = ({
       {/* Card Body */}
       <div className="px-6 pb-4">
         <p className="text-[#0F1C2E] leading-relaxed" dangerouslySetInnerHTML={{
-        __html: highlightContent(translatedContent || post.content)
+        __html: highlightContent(post.content)
       }} />
-        {translatedContent && (
-          <div className="mt-2 text-xs text-gray-500 italic">
-            (Translated to English)
-          </div>
-        )}
         
         {/* Media Display */}
         {hasMedia && (
@@ -556,24 +532,7 @@ const FeedCard = ({
       }} exit={{
         opacity: 0,
         height: 0
-      }} className="border-t border-gray-100 px-6 py-3 flex items-center justify-center">
-            <button 
-              onClick={handleTranslate}
-              disabled={isTranslating}
-              className="flex items-center space-x-2 px-4 py-2 text-sm font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isTranslating ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Translating...</span>
-                </>
-              ) : (
-                <>
-                  <Languages size={16} />
-                  <span>Translate</span>
-                </>
-              )}
-            </button>
+      }} className="border-t border-gray-100 px-6 py-3">
           </motion.div>}
       </AnimatePresence>
 
@@ -611,6 +570,9 @@ const FilterChip = ({
 
 // Main Feeds Page Component
 export const FeedsPage = () => {
+  const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translatedContent, setTranslatedContent] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     dateRange: '24h',
     platforms: [],
@@ -619,7 +581,6 @@ export const FeedsPage = () => {
     searchQuery: ''
   });
   const [sortBy, setSortBy] = useState<SortOption>('latest');
-  const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -644,6 +605,11 @@ export const FeedsPage = () => {
     }, 300); // Debounce search by 300ms
     return () => clearTimeout(timer);
   }, [filters.searchQuery]);
+
+  // Reset translated content when selected post changes
+  useEffect(() => {
+    setTranslatedContent(null);
+  }, [selectedPost?.id]);
 
   const loadPosts = async (append: boolean = false) => {
     if (!append) {
@@ -990,27 +956,44 @@ export const FeedsPage = () => {
         </div>
       </div>
 
-      {/* Right Panel - Fact Check Details */}
+      {/* Post Detail Modal */}
       <AnimatePresence>
         {selectedPost && (
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full w-96 bg-white border-l border-gray-200 shadow-2xl z-50 overflow-y-auto"
-          >
-          <div className="p-6">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-[#0F1C2E]">Post Analysis</h2>
-              <button
-                onClick={() => setSelectedPost(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <XIcon size={20} className="text-gray-500" />
-              </button>
-            </div>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedPost(null)}
+              className="fixed inset-0 bg-black/50 z-40"
+            />
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-4 md:inset-8 lg:inset-16 z-50 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex-shrink-0 bg-white border-b border-gray-200 p-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-[#0F1C2E]">Post Analysis</h2>
+                  <button
+                    onClick={() => {
+                      setSelectedPost(null);
+                      setTranslatedContent(null);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <XIcon size={20} className="text-gray-500" />
+                  </button>
+                </div>
+              </div>
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-6">
 
             {/* Post Summary */}
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
@@ -1018,10 +1001,43 @@ export const FeedsPage = () => {
                 <span className="font-semibold text-[#0F1C2E]">{selectedPost.source}</span>
                 {selectedPost.verified && <Shield size={14} className="text-[#1F9D8A]" fill="currentColor" />}
               </div>
-              <p className="text-sm text-gray-600 line-clamp-3">{selectedPost.content}</p>
+              <p className="text-sm text-gray-600">{translatedContent || selectedPost.content}</p>
               <div className="mt-2 flex items-center space-x-2">
                 <RiskScoreBadge score={selectedPost.riskScore} />
                 <SentimentBadge sentiment={selectedPost.sentiment} />
+              </div>
+              {/* Translate Button */}
+              <div className="mt-4">
+                <button 
+                  onClick={async () => {
+                    if (isTranslating) return;
+                    setIsTranslating(true);
+                    setTranslatedContent(null);
+                    try {
+                      const result = await PostsApi.translate(selectedPost.id);
+                      setTranslatedContent(result.translatedText);
+                    } catch (error: any) {
+                      console.error('Translation error:', error);
+                      alert('Translation failed: ' + (error.message || 'Unknown error'));
+                    } finally {
+                      setIsTranslating(false);
+                    }
+                  }}
+                  disabled={isTranslating}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isTranslating ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Translating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Languages size={16} />
+                      <span>Translate</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -1166,8 +1182,10 @@ export const FeedsPage = () => {
                 )}
               </div>
             )}
-          </div>
-        </motion.div>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>;

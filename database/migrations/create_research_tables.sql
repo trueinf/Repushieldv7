@@ -60,3 +60,8 @@ ALTER TABLE research_reports ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all operations" ON researches FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON research_reports FOR ALL USING (true);
 
+
+
+
+
+

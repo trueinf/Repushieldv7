@@ -306,61 +306,52 @@ export const RepuShield = () => {
             <div className="max-w-7xl mx-auto space-y-8">
             
             {/* Summary Row */}
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {dashboardLoading ? (
-                <>
-                  <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
-                    <div className="h-8 bg-gray-200 rounded w-32"></div>
-                  </div>
-                  <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
-                    <div className="h-8 bg-gray-200 rounded w-32"></div>
-                  </div>
-                  <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
-                    <div className="h-8 bg-gray-200 rounded w-32"></div>
-                  </div>
-                  <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
-                    <div className="h-8 bg-gray-200 rounded w-32"></div>
-                  </div>
-                </>
-              ) : dashboardStats ? (
-                <>
-                  <StatCard 
-                    title="Reputation Score" 
-                    value={`${dashboardStats.reputationScore.value}/100`} 
-                    trend={`${dashboardStats.reputationScore.trend >= 0 ? '+' : ''}${dashboardStats.reputationScore.trend.toFixed(1)}%`} 
-                    trendType={dashboardStats.reputationScore.trend >= 0 ? 'up' : 'down'} 
-                  />
-                  <StatCard 
-                    title="Total Mentions" 
-                    value={dashboardStats.totalMentions.value.toLocaleString()} 
-                    trend={`${dashboardStats.totalMentions.trend >= 0 ? '+' : ''}${dashboardStats.totalMentions.trend.toFixed(1)}%`} 
-                    trendType={dashboardStats.totalMentions.trend >= 0 ? 'up' : 'down'} 
-                  />
-                  <StatCard 
-                    title="Critical Alerts" 
-                    value={dashboardStats.criticalAlerts.value.toString().padStart(2, '0')} 
-                    trend={`${dashboardStats.criticalAlerts.trend >= 0 ? '+' : ''}${dashboardStats.criticalAlerts.trend.toFixed(1)}%`} 
-                    trendType={dashboardStats.criticalAlerts.trend >= 0 ? 'up' : 'down'} 
-                  />
-                  <StatCard 
-                    title="Response Time" 
-                    value={`${dashboardStats.responseTime.value}m`} 
-                    trend={`${dashboardStats.responseTime.trend >= 0 ? '+' : ''}${dashboardStats.responseTime.trend.toFixed(1)}%`} 
-                    trendType={dashboardStats.responseTime.trend >= 0 ? 'up' : 'down'} 
-                  />
-                </>
-              ) : (
-                <>
-                  <StatCard title="Reputation Score" value="0/100" trend="0%" trendType="up" />
-                  <StatCard title="Total Mentions" value="0" trend="0%" trendType="up" />
-                  <StatCard title="Critical Alerts" value="00" trend="0%" trendType="up" />
-                  <StatCard title="Response Time" value="0m" trend="0%" trendType="up" />
-                </>
-              )}
+            <section className="flex justify-center">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl">
+                {dashboardLoading ? (
+                  <>
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
+                      <div className="h-8 bg-gray-200 rounded w-32"></div>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
+                      <div className="h-8 bg-gray-200 rounded w-32"></div>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
+                      <div className="h-8 bg-gray-200 rounded w-32"></div>
+                    </div>
+                  </>
+                ) : dashboardStats ? (
+                  <>
+                    <StatCard 
+                      title="Reputation Score" 
+                      value={`${dashboardStats.reputationScore.value}/100`} 
+                      trend={`${dashboardStats.reputationScore.trend >= 0 ? '+' : ''}${dashboardStats.reputationScore.trend.toFixed(1)}%`} 
+                      trendType={dashboardStats.reputationScore.trend >= 0 ? 'up' : 'down'} 
+                    />
+                    <StatCard 
+                      title="Total Mentions" 
+                      value={dashboardStats.totalMentions.value.toLocaleString()} 
+                      trend={`${dashboardStats.totalMentions.trend >= 0 ? '+' : ''}${dashboardStats.totalMentions.trend.toFixed(1)}%`} 
+                      trendType={dashboardStats.totalMentions.trend >= 0 ? 'up' : 'down'} 
+                    />
+                    <StatCard 
+                      title="Critical Alerts" 
+                      value={dashboardStats.criticalAlerts.value.toString().padStart(2, '0')} 
+                      trend={`${dashboardStats.criticalAlerts.trend >= 0 ? '+' : ''}${dashboardStats.criticalAlerts.trend.toFixed(1)}%`} 
+                      trendType={dashboardStats.criticalAlerts.trend >= 0 ? 'up' : 'down'} 
+                    />
+                  </>
+                ) : (
+                  <>
+                    <StatCard title="Reputation Score" value="0/100" trend="0%" trendType="up" />
+                    <StatCard title="Total Mentions" value="0" trend="0%" trendType="up" />
+                    <StatCard title="Critical Alerts" value="00" trend="0%" trendType="up" />
+                  </>
+                )}
+              </div>
             </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

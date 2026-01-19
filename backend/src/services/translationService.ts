@@ -14,24 +14,36 @@ export class TranslationService {
       }
 
       // Check if text is already in English (simple heuristic)
-      // If it's already English, return as is
       const isLikelyEnglish = this.detectLanguage(text);
+      
+      let targetLanguage: string;
+      let systemPrompt: string;
+      let userPrompt: string;
+      
       if (isLikelyEnglish === 'en') {
-        return text;
+        // If English, translate to Hindi
+        targetLanguage = 'Hindi';
+        console.log(`[Translation Service] Text is English, translating to Hindi (${text.length} chars)`);
+        systemPrompt = 'You are a professional translator. Translate the given English text to Hindi. Preserve the original meaning, tone, and context. Use natural Hindi language. Only return the translated text, no explanations or additional text.';
+        userPrompt = `Translate this English text to Hindi:\n\n${text}`;
+      } else {
+        // If not English, translate to English
+        targetLanguage = 'English';
+        console.log(`[Translation Service] Text is not English, translating to English (${text.length} chars)`);
+        systemPrompt = 'You are a professional translator. Translate the given text to English. Preserve the original meaning, tone, and context. Only return the translated text, no explanations or additional text.';
+        userPrompt = `Translate this text to English:\n\n${text}`;
       }
-
-      console.log(`[Translation Service] Translating text (${text.length} chars) to English`);
 
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: 'You are a professional translator. Translate the given text to English. Preserve the original meaning, tone, and context. If the text is already in English, return it as is. Only return the translated text, no explanations or additional text.',
+            content: systemPrompt,
           },
           {
             role: 'user',
-            content: `Translate this text to English:\n\n${text}`,
+            content: userPrompt,
           },
         ],
         temperature: 0.3,
@@ -40,7 +52,7 @@ export class TranslationService {
 
       const translatedText = completion.choices[0]?.message?.content?.trim() || text;
 
-      console.log(`[Translation Service] Translation completed (${translatedText.length} chars)`);
+      console.log(`[Translation Service] Translation to ${targetLanguage} completed (${translatedText.length} chars)`);
       return translatedText;
     } catch (error: any) {
       console.error('[Translation Service] Error translating text:', error.message);
