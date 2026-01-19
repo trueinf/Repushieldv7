@@ -230,10 +230,58 @@ export const ConfigurationPage = ({ onActivate }: { onActivate?: () => void }) =
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [configId, setConfigId] = useState<string | null>(null);
+  const [monitoringStatus, setMonitoringStatus] = useState<MonitoringStatus | null>(null);
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
 
   useEffect(() => {
     loadActiveConfiguration();
+    loadMonitoringStatus();
   }, []);
+
+  const loadMonitoringStatus = async () => {
+    try {
+      const status = await monitoringApi.getStatus();
+      setMonitoringStatus(status);
+    } catch (error) {
+      console.error('Error loading monitoring status:', error);
+    }
+  };
+
+  const handlePauseMonitoring = async () => {
+    setMonitoringLoading(true);
+    try {
+      const status = await monitoringApi.pause();
+      setMonitoringStatus(status);
+    } catch (error) {
+      console.error('Error pausing monitoring:', error);
+    } finally {
+      setMonitoringLoading(false);
+    }
+  };
+
+  const handleResumeMonitoring = async () => {
+    setMonitoringLoading(true);
+    try {
+      const status = await monitoringApi.resume();
+      setMonitoringStatus(status);
+    } catch (error) {
+      console.error('Error resuming monitoring:', error);
+    } finally {
+      setMonitoringLoading(false);
+    }
+  };
+
+  const handleStopMonitoring = async () => {
+    setMonitoringLoading(true);
+    try {
+      const status = await monitoringApi.stop();
+      setMonitoringStatus(status);
+    } catch (error) {
+      console.error('Error stopping monitoring:', error);
+    } finally {
+      setMonitoringLoading(false);
+    }
+  };
 
   const loadActiveConfiguration = async () => {
     setLoading(true);

@@ -19,8 +19,7 @@ export const monitoringApi = {
 
   async pause(): Promise<MonitoringStatus> {
     try {
-      const response = await apiClient.post<{ data: MonitoringStatus; message: string }>('/monitoring/pause', {});
-      return response.data;
+      return await apiClient.post<MonitoringStatus>('/monitoring/pause', {});
     } catch (error) {
       console.error('Error pausing monitoring:', error);
       throw error;
@@ -29,8 +28,7 @@ export const monitoringApi = {
 
   async resume(): Promise<MonitoringStatus> {
     try {
-      const response = await apiClient.post<{ data: MonitoringStatus; message: string }>('/monitoring/resume', {});
-      return response.data;
+      return await apiClient.post<MonitoringStatus>('/monitoring/resume', {});
     } catch (error) {
       console.error('Error resuming monitoring:', error);
       throw error;
@@ -39,13 +37,13 @@ export const monitoringApi = {
 
   async stop(): Promise<MonitoringStatus> {
     try {
-      const response = await apiClient.post<{ data: MonitoringStatus; message: string }>('/monitoring/stop', {});
-      return response.data;
+      return await apiClient.post<MonitoringStatus>('/monitoring/stop', {});
     } catch (error) {
       console.error('Error stopping monitoring:', error);
       throw error;
     }
   },
 };
+
 
 
