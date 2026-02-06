@@ -226,10 +226,23 @@ export const RepuShield = () => {
 
   const loadActiveConfiguration = async () => {
     try {
-      const config = await ConfigurationApi.getActive();
-      if (config) {
-        setConfigurationId(config.id);
-        setActiveConfiguration(config);
+      // First try to get active configuration
+      const activeConfig = await ConfigurationApi.getActive();
+      if (activeConfig) {
+        setConfigurationId(activeConfig.id);
+        setActiveConfiguration({ ...activeConfig, _isActive: true });
+      } else {
+        // If no active config, get the most recent one
+        const allConfigs = await ConfigurationApi.getAll();
+        if (allConfigs && allConfigs.length > 0) {
+          // Sort by updatedAt to get the most recent
+          const sortedConfigs = allConfigs.sort((a, b) => 
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+          const mostRecent = sortedConfigs[0];
+          setConfigurationId(mostRecent.id);
+          setActiveConfiguration({ ...mostRecent, _isActive: false });
+        }
       }
     } catch (err) {
       console.error('Error loading configuration:', err);
@@ -346,15 +359,21 @@ export const RepuShield = () => {
             <div className="max-w-7xl mx-auto space-y-8">
 
             {/* Configuration Context Bar */}
-            {activeConfiguration && (
-              <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+            {activeConfiguration ? (
+              <div className={`border rounded-xl shadow-sm p-4 ${activeConfiguration._isActive ? 'bg-white border-gray-200' : 'bg-amber-50 border-amber-200'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-6">
-                    {/* Active Configuration Name */}
+                    {/* Configuration Name with Status */}
                     <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      {activeConfiguration._isActive ? (
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      ) : (
+                        <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                      )}
                       <div>
-                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Active Configuration</p>
+                        <p className={`text-xs font-medium uppercase tracking-wider ${activeConfiguration._isActive ? 'text-gray-500' : 'text-amber-600'}`}>
+                          {activeConfiguration._isActive ? 'Active Configuration' : 'Not Active'}
+                        </p>
                         <p className="text-lg font-bold text-[#0F1C2E]">{activeConfiguration.entityDetails?.name || 'Unnamed Configuration'}</p>
                       </div>
                     </div>
@@ -410,13 +429,38 @@ export const RepuShield = () => {
                     </div>
                   </div>
 
-                  {/* Edit Button */}
+                  {/* Edit/Activate Button */}
                   <button 
                     onClick={() => setActiveTab('configuration')}
-                    className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-[#1F9D8A] hover:bg-[#1F9D8A]/10 rounded-lg transition-colors"
+                    className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      activeConfiguration._isActive 
+                        ? 'text-[#1F9D8A] hover:bg-[#1F9D8A]/10' 
+                        : 'text-white bg-[#1F9D8A] hover:bg-[#188976]'
+                    }`}
                   >
                     <Settings size={16} />
-                    <span>Edit</span>
+                    <span>{activeConfiguration._isActive ? 'Edit' : 'Activate'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Settings size={20} className="text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">No Configuration</p>
+                      <p className="text-sm text-gray-600">Create a monitoring configuration to start tracking</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('configuration')}
+                    className="flex items-center space-x-2 px-4 py-2 text-sm font-semibold text-white bg-[#1F9D8A] hover:bg-[#188976] rounded-lg transition-colors"
+                  >
+                    <Settings size={16} />
+                    <span>Create Configuration</span>
                   </button>
                 </div>
               </div>
