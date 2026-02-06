@@ -65,3 +65,9 @@ CREATE POLICY "Allow all operations" ON research_reports FOR ALL USING (true);
 
 
 
+
+
+
+
+
+

@@ -59,6 +59,7 @@ export class PostsApi {
   static async getAll(params?: {
     platform?: string;
     configuration_id?: string;
+    topic_id?: string;
     limit?: number;
     offset?: number;
     sort?: string;
@@ -68,6 +69,7 @@ export class PostsApi {
       const queryParams = new URLSearchParams();
       if (params?.platform) queryParams.append('platform', params.platform);
       if (params?.configuration_id) queryParams.append('configuration_id', params.configuration_id);
+      if (params?.topic_id) queryParams.append('topic_id', params.topic_id);
       if (params?.limit) queryParams.append('limit', params.limit.toString());
       if (params?.offset) queryParams.append('offset', params.offset.toString());
       if (params?.sort) queryParams.append('sort', params.sort);

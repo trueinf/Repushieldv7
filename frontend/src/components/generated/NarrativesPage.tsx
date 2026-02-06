@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, X as XIcon, TrendingUp, TrendingDown, Calendar, ChevronDown, Filter, AlertTriangle, Eye, MoreVertical, ChevronRight, Target, Layers, Zap, Clock, MapPin, Users, Activity, BookOpen, Lightbulb, Shield, FileText, ArrowUpRight, ArrowDownRight, Sparkles, CheckCircle, Bell, Ban, MessageSquare, BarChart2, Globe } from 'lucide-react';
+import { Search, X as XIcon, TrendingDown, AlertTriangle, Target, Layers, Zap, MapPin, Activity, Lightbulb, ArrowUpRight, ArrowDownRight, Sparkles, CheckCircle, Bell, MessageSquare, BarChart2, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { narrativesApi, type Narrative as NarrativeApiType } from '../../services/narrativesApi';
@@ -30,6 +30,12 @@ interface Narrative {
     news: number;
     social: number;
     forums: number;
+  };
+  platformDetails?: {
+    twitter: number;
+    reddit: number;
+    facebook: number;
+    news: number;
   };
   contributingTopics: number;
   reinforcingPosts: number;
@@ -401,26 +407,33 @@ const MiniSparkline = ({
 
 // Platform Distribution Component
 const PlatformDistribution = ({
-  platforms
+  platformDetails
 }: {
-  platforms: {
+  platformDetails?: {
+    twitter: number;
+    reddit: number;
+    facebook: number;
     news: number;
-    social: number;
-    forums: number;
   };
 }) => {
-  return <div className="flex items-center space-x-1">
-      {platforms.news > 0 && <div className="flex items-center space-x-0.5 text-gray-600 text-[10px] font-medium">
-          <Globe size={10} />
-          <span>{platforms.news}%</span>
+  if (!platformDetails) return null;
+  
+  return <div className="flex items-center space-x-2">
+      {platformDetails.twitter > 0 && <div className="flex items-center space-x-1 text-[10px] font-medium">
+          <span className="w-4 h-4 bg-black rounded flex items-center justify-center text-white text-[8px] font-bold">𝕏</span>
+          <span className="text-gray-700">{platformDetails.twitter}%</span>
         </div>}
-      {platforms.social > 0 && <div className="flex items-center space-x-0.5 text-blue-600 text-[10px] font-medium">
-          <MessageSquare size={10} />
-          <span>{platforms.social}%</span>
+      {platformDetails.reddit > 0 && <div className="flex items-center space-x-1 text-[10px] font-medium">
+          <span className="w-4 h-4 bg-orange-500 rounded flex items-center justify-center text-white text-[8px] font-bold">R</span>
+          <span className="text-gray-700">{platformDetails.reddit}%</span>
         </div>}
-      {platforms.forums > 0 && <div className="flex items-center space-x-0.5 text-orange-600 text-[10px] font-medium">
-          <BarChart2 size={10} />
-          <span>{platforms.forums}%</span>
+      {platformDetails.facebook > 0 && <div className="flex items-center space-x-1 text-[10px] font-medium">
+          <span className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center text-white text-[8px] font-bold">f</span>
+          <span className="text-gray-700">{platformDetails.facebook}%</span>
+        </div>}
+      {platformDetails.news > 0 && <div className="flex items-center space-x-1 text-gray-600 text-[10px] font-medium">
+          <Globe size={12} />
+          <span>{platformDetails.news}%</span>
         </div>}
     </div>;
 };
@@ -504,7 +517,7 @@ const NarrativeCard = ({
         </div>
 
         <div className="mt-3 flex items-center justify-between">
-          <PlatformDistribution platforms={narrative.platforms} />
+          <PlatformDistribution platformDetails={narrative.platformDetails} />
           {narrative.influencerInvolvement && <span className="px-2 py-1 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">
               🎯 Influencer-Driven
             </span>}
@@ -517,22 +530,6 @@ const NarrativeCard = ({
           </div>}
       </div>
 
-      {/* Card Footer */}
-      <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-        <div className="flex items-center space-x-2">
-          <button className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white rounded transition-colors">
-            <Eye size={12} />
-            <span>View</span>
-          </button>
-          <button className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white rounded transition-colors">
-            <FileText size={12} />
-            <span>Feed</span>
-          </button>
-        </div>
-        <button className="px-3 py-1.5 text-xs font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors">
-          Draft Response
-        </button>
-      </div>
     </motion.div>;
 };
 
@@ -688,48 +685,65 @@ const NarrativeDetailPanel = ({
 
             <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Platform Distribution</h4>
             <div className="space-y-2">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700 font-medium flex items-center space-x-1">
-                    <Globe size={14} />
-                    <span>News</span>
-                  </span>
-                  <span className="font-bold text-[#0F1C2E]">{narrative.platforms.news}%</span>
+              {(narrative.platformDetails?.twitter || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium flex items-center space-x-2">
+                      <span className="w-5 h-5 bg-black rounded flex items-center justify-center text-white text-[10px] font-bold">𝕏</span>
+                      <span>Twitter/X</span>
+                    </span>
+                    <span className="font-bold text-[#0F1C2E]">{narrative.platformDetails?.twitter}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-black rounded-full" style={{ width: `${narrative.platformDetails?.twitter}%` }} />
+                  </div>
                 </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gray-600 rounded-full" style={{
-                  width: `${narrative.platforms.news}%`
-                }} />
+              )}
+              {(narrative.platformDetails?.reddit || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium flex items-center space-x-2">
+                      <span className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center text-white text-[10px] font-bold">R</span>
+                      <span>Reddit</span>
+                    </span>
+                    <span className="font-bold text-[#0F1C2E]">{narrative.platformDetails?.reddit}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${narrative.platformDetails?.reddit}%` }} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700 font-medium flex items-center space-x-1">
-                    <MessageSquare size={14} />
-                    <span>Social Media</span>
-                  </span>
-                  <span className="font-bold text-[#0F1C2E]">{narrative.platforms.social}%</span>
+              )}
+              {(narrative.platformDetails?.facebook || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium flex items-center space-x-2">
+                      <span className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white text-[10px] font-bold">f</span>
+                      <span>Facebook</span>
+                    </span>
+                    <span className="font-bold text-[#0F1C2E]">{narrative.platformDetails?.facebook}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-600 rounded-full" style={{ width: `${narrative.platformDetails?.facebook}%` }} />
+                  </div>
                 </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-600 rounded-full" style={{
-                  width: `${narrative.platforms.social}%`
-                }} />
+              )}
+              {(narrative.platformDetails?.news || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium flex items-center space-x-2">
+                      <Globe size={16} className="text-gray-600" />
+                      <span>News</span>
+                    </span>
+                    <span className="font-bold text-[#0F1C2E]">{narrative.platformDetails?.news}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gray-600 rounded-full" style={{ width: `${narrative.platformDetails?.news}%` }} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700 font-medium flex items-center space-x-1">
-                    <BarChart2 size={14} />
-                    <span>Forums</span>
-                  </span>
-                  <span className="font-bold text-[#0F1C2E]">{narrative.platforms.forums}%</span>
-                </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-600 rounded-full" style={{
-                  width: `${narrative.platforms.forums}%`
-                }} />
-                </div>
-              </div>
+              )}
+              {(!narrative.platformDetails || (narrative.platformDetails.twitter === 0 && narrative.platformDetails.reddit === 0 && narrative.platformDetails.facebook === 0 && narrative.platformDetails.news === 0)) && (
+                <p className="text-sm text-gray-500">No platform data available</p>
+              )}
             </div>
           </section>
 
@@ -788,51 +802,12 @@ const NarrativeDetailPanel = ({
             </div>
           </section>
 
-          {/* Action Buttons */}
-          <section className="pt-6 border-t border-gray-100">
-            <div className="grid grid-cols-2 gap-3">
-              <button className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                View Topics
-              </button>
-              <button className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Open Feed
-              </button>
-              <button className="px-4 py-2 text-sm font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors col-span-2">
-                Draft Counter-Narrative
-              </button>
-              <button className="px-4 py-2 text-sm font-semibold text-orange-700 border border-orange-300 rounded-lg hover:bg-orange-50 transition-colors">
-                Escalate
-              </button>
-              <button className="px-4 py-2 text-sm font-semibold text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Archive
-              </button>
-            </div>
-          </section>
             </div>
           </div>
         </motion.div>
       </>
     </AnimatePresence>;
 };
-
-// Filter Chip Component
-const FilterChip = ({
-  label,
-  active,
-  onClick,
-  onRemove
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  onRemove?: () => void;
-}) => <button onClick={onClick} className={cn('flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all', active ? 'bg-[#1F9D8A] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:border-[#1F9D8A]')}>
-    <span>{label}</span>
-    {active && onRemove && <XIcon size={12} onClick={e => {
-    e.stopPropagation();
-    onRemove();
-  }} className="hover:scale-110" />}
-  </button>;
 
 // Main Narratives Page Component
 export const NarrativesPage = () => {
@@ -910,59 +885,16 @@ export const NarrativesPage = () => {
           </div>
         </div>
 
-        {/* Strategic Filters & Controls */}
-        <div className="px-6 py-4 flex items-center justify-between">
-          {/* Filters */}
-          <div className="flex items-center space-x-2 flex-wrap gap-2">
-            <Filter size={16} className="text-gray-500" />
-
-            {/* Narrative Type Filters */}
-            <FilterChip label="Reputational" active={false} onClick={() => {}} />
-            <FilterChip label="Ethical" active={false} onClick={() => {}} />
-            <FilterChip label="Safety" active={false} onClick={() => {}} />
-
-            <div className="h-4 w-px bg-gray-300 mx-1" />
-
-            {/* Status Filters */}
-            <FilterChip label="Emerging" active={false} onClick={() => {}} />
-            <FilterChip label="Established" active={false} onClick={() => {}} />
-            <FilterChip label="Entrenched" active={false} onClick={() => {}} />
-
-            <div className="h-4 w-px bg-gray-300 mx-1" />
-
-            {/* Risk Level Filters */}
-            <FilterChip label="High Risk" active={false} onClick={() => {}} />
-            <FilterChip label="Critical" active={false} onClick={() => {}} />
-
-            <div className="h-4 w-px bg-gray-300 mx-1" />
-
-            {/* Intent Signal Filters */}
-            <FilterChip label="Coordinated" active={false} onClick={() => {}} />
-          </div>
-
-          {/* Right Controls */}
-          <div className="flex items-center space-x-4">
-            {/* Sort */}
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-gray-500 font-medium">Sort:</span>
-              <select value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)} className="text-xs font-semibold text-[#0F1C2E] bg-transparent border-none focus:ring-0 cursor-pointer">
-                <option value="strength">Narrative Strength</option>
-                <option value="growth">Fastest Growing</option>
-                <option value="damage">Most Damaging</option>
-                <option value="duration">Longest Running</option>
-              </select>
-            </div>
-
-            {/* Create Narrative */}
-            <button className="px-4 py-1.5 text-xs font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors">
-              + Create Narrative
-            </button>
-
-            {/* Playbook Toggle */}
-            <button className="px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-1">
-              <BookOpen size={14} />
-              <span>Playbook</span>
-            </button>
+        {/* Sort Controls */}
+        <div className="px-6 py-4 flex items-center justify-end">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 font-medium">Sort:</span>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)} className="text-xs font-semibold text-[#0F1C2E] bg-transparent border-none focus:ring-0 cursor-pointer">
+              <option value="strength">Narrative Strength</option>
+              <option value="growth">Fastest Growing</option>
+              <option value="damage">Most Damaging</option>
+              <option value="duration">Longest Running</option>
+            </select>
           </div>
         </div>
       </div>

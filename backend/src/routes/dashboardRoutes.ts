@@ -6,15 +6,37 @@ const router = Router();
 // GET /api/dashboard/stats - Overall statistics
 router.get('/stats', async (req: Request, res: Response) => {
   try {
-    const { configuration_id } = req.query;
+    const { configuration_id, range = 'total' } = req.query;
+
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date | null = null;
+    
+    switch (range) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'quarter':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'total':
+      default:
+        startDate = null; // No date filter
+    }
 
     // Build base query
     let baseQuery = supabase.from('posts').select('*', { count: 'exact' });
     if (configuration_id) {
       baseQuery = baseQuery.eq('configuration_id', configuration_id as string);
     }
+    if (startDate) {
+      baseQuery = baseQuery.gte('created_at', startDate.toISOString());
+    }
 
-    // Get all posts for calculations
+    // Get posts for calculations (filtered by range)
     const { data: posts, error, count } = await baseQuery;
 
     if (error) {
@@ -80,16 +102,31 @@ router.get('/stats', async (req: Request, res: Response) => {
       }
     }
 
-    // Calculate trends (compare with previous period)
-    // For simplicity, we'll calculate based on recent vs older posts
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    // Calculate trends (compare current period with previous period of same length)
+    // Determine period length based on range
+    let periodDays: number;
+    switch (range) {
+      case '7d':
+        periodDays = 7;
+        break;
+      case '30d':
+        periodDays = 30;
+        break;
+      case 'quarter':
+        periodDays = 90;
+        break;
+      case 'total':
+      default:
+        periodDays = 7; // Default to 7 days for trend calculation in total view
+    }
 
-    const recentPosts = posts.filter(p => new Date(p.created_at) >= sevenDaysAgo);
+    const periodStart = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+    const previousPeriodStart = new Date(now.getTime() - (periodDays * 2) * 24 * 60 * 60 * 1000);
+
+    const recentPosts = posts.filter(p => new Date(p.created_at) >= periodStart);
     const previousPosts = posts.filter(p => {
       const postDate = new Date(p.created_at);
-      return postDate >= fourteenDaysAgo && postDate < sevenDaysAgo;
+      return postDate >= previousPeriodStart && postDate < periodStart;
     });
 
     // Calculate trends
@@ -155,7 +192,7 @@ router.get('/sentiment-trends', async (req: Request, res: Response) => {
     
     // Calculate date range
     const now = new Date();
-    let startDate: Date;
+    let startDate: Date | null = null;
     
     switch (range) {
       case '7d':
@@ -167,6 +204,9 @@ router.get('/sentiment-trends', async (req: Request, res: Response) => {
       case 'quarter':
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         break;
+      case 'total':
+        startDate = null; // No date filter - show all
+        break;
       default:
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     }
@@ -174,8 +214,11 @@ router.get('/sentiment-trends', async (req: Request, res: Response) => {
     let query = supabase
       .from('posts')
       .select('created_at, sentiment')
-      .gte('created_at', startDate.toISOString())
       .order('created_at', { ascending: true });
+    
+    if (startDate) {
+      query = query.gte('created_at', startDate.toISOString());
+    }
 
     if (configuration_id) {
       query = query.eq('configuration_id', configuration_id as string);
@@ -537,11 +580,104 @@ router.get('/recent-posts', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/dashboard/risk-distribution - Risk score distribution histogram
+router.get('/risk-distribution', async (req: Request, res: Response) => {
+  try {
+    const { configuration_id } = req.query;
+
+    let query = supabase
+      .from('posts')
+      .select('risk_score');
+
+    if (configuration_id) {
+      query = query.eq('configuration_id', configuration_id as string);
+    }
+
+    const { data: posts, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    if (!posts || posts.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          distribution: [
+            { range: '0-2', label: 'Low', count: 0, percentage: 0, color: '#10B981' },
+            { range: '3-4', label: 'Medium', count: 0, percentage: 0, color: '#F59E0B' },
+            { range: '5-6', label: 'High', count: 0, percentage: 0, color: '#F97316' },
+            { range: '7-8', label: 'Very High', count: 0, percentage: 0, color: '#EF4444' },
+            { range: '9-10', label: 'Critical', count: 0, percentage: 0, color: '#DC2626' },
+          ],
+          total: 0,
+          averageRisk: 0,
+        },
+      });
+    }
+
+    // Count posts in each risk range
+    const ranges = {
+      '0-2': { count: 0, label: 'Low', color: '#10B981' },
+      '3-4': { count: 0, label: 'Medium', color: '#F59E0B' },
+      '5-6': { count: 0, label: 'High', color: '#F97316' },
+      '7-8': { count: 0, label: 'Very High', color: '#EF4444' },
+      '9-10': { count: 0, label: 'Critical', color: '#DC2626' },
+    };
+
+    let totalWithRisk = 0;
+    let riskSum = 0;
+
+    posts.forEach(post => {
+      const riskScore = post.risk_score;
+      if (riskScore !== null && riskScore !== undefined) {
+        totalWithRisk++;
+        riskSum += riskScore;
+
+        if (riskScore >= 0 && riskScore <= 2) {
+          ranges['0-2'].count++;
+        } else if (riskScore >= 3 && riskScore <= 4) {
+          ranges['3-4'].count++;
+        } else if (riskScore >= 5 && riskScore <= 6) {
+          ranges['5-6'].count++;
+        } else if (riskScore >= 7 && riskScore <= 8) {
+          ranges['7-8'].count++;
+        } else if (riskScore >= 9 && riskScore <= 10) {
+          ranges['9-10'].count++;
+        }
+      }
+    });
+
+    // Calculate percentages and format response
+    const distribution = Object.entries(ranges).map(([range, data]) => ({
+      range,
+      label: data.label,
+      count: data.count,
+      percentage: totalWithRisk > 0 ? Math.round((data.count / totalWithRisk) * 100) : 0,
+      color: data.color,
+    }));
+
+    const averageRisk = totalWithRisk > 0 ? Math.round((riskSum / totalWithRisk) * 10) / 10 : 0;
+
+    res.json({
+      success: true,
+      data: {
+        distribution,
+        total: totalWithRisk,
+        averageRisk,
+      },
+    });
+  } catch (error: any) {
+    console.error('[Dashboard API] Error fetching risk distribution:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch risk distribution',
+      message: error.message,
+    });
+  }
+});
+
 export default router;
-
-
-
-
 
 
 

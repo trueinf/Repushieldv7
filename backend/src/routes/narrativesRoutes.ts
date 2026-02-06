@@ -77,6 +77,12 @@ router.get('/', async (req, res) => {
         social: (narrative.platform_distribution?.twitter || 0) + (narrative.platform_distribution?.reddit || 0) + (narrative.platform_distribution?.facebook || 0),
         forums: narrative.platform_distribution?.reddit || 0,
       },
+      platformDetails: {
+        twitter: narrative.platform_distribution?.twitter || 0,
+        reddit: narrative.platform_distribution?.reddit || 0,
+        facebook: narrative.platform_distribution?.facebook || 0,
+        news: narrative.platform_distribution?.news || 0,
+      },
       contributingTopics: narrative.contributing_topics_count || 0,
       reinforcingPosts: narrative.post_count || 0,
       influencerInvolvement: false, // Default, can be enhanced
@@ -155,6 +161,12 @@ router.get('/:id', async (req, res) => {
         news: narrative.platform_distribution?.news || 0,
         social: (narrative.platform_distribution?.twitter || 0) + (narrative.platform_distribution?.reddit || 0) + (narrative.platform_distribution?.facebook || 0),
         forums: narrative.platform_distribution?.reddit || 0,
+      },
+      platformDetails: {
+        twitter: narrative.platform_distribution?.twitter || 0,
+        reddit: narrative.platform_distribution?.reddit || 0,
+        facebook: narrative.platform_distribution?.facebook || 0,
+        news: narrative.platform_distribution?.news || 0,
       },
       contributingTopics: narrative.contributing_topics_count || 0,
       reinforcingPosts: narrative.post_count || 0,

@@ -15,11 +15,60 @@ router.get('/', async (req: Request, res: Response) => {
     const {
       platform,
       configuration_id,
+      topic_id,
       limit = 1000, // Increased default limit to show more posts
       offset = 0,
       sort = 'created_at',
       order = 'desc',
     } = req.query;
+
+    // If topic_id is provided, we need to join with topic_posts table
+    if (topic_id) {
+      // Get post IDs for this topic first
+      const { data: topicPosts, error: topicError } = await supabase
+        .from('topic_posts')
+        .select('post_id')
+        .eq('topic_id', topic_id);
+
+      if (topicError) {
+        throw topicError;
+      }
+
+      const postIds = (topicPosts || []).map(tp => tp.post_id);
+      
+      if (postIds.length === 0) {
+        return res.json({
+          success: true,
+          data: [],
+          count: 0,
+        });
+      }
+
+      let query = supabase
+        .from('posts')
+        .select('*')
+        .in('id', postIds)
+        .order(sort as string, { ascending: order === 'asc' })
+        .range(parseInt(offset as string), parseInt(offset as string) + parseInt(limit as string) - 1);
+
+      if (platform) {
+        query = query.eq('platform', platform);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      console.log(`[Posts API] Fetched ${data?.length || 0} posts for topic ${topic_id}`);
+
+      return res.json({
+        success: true,
+        data: data || [],
+        count: data?.length || 0,
+      });
+    }
 
     let query = supabase
       .from('posts')

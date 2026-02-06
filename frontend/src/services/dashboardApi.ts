@@ -56,10 +56,28 @@ export interface RecentPost {
   postUrl: string;
 }
 
+export interface RiskDistributionItem {
+  range: string;
+  label: string;
+  count: number;
+  percentage: number;
+  color: string;
+}
+
+export interface RiskDistribution {
+  distribution: RiskDistributionItem[];
+  total: number;
+  averageRisk: number;
+}
+
 export class DashboardApi {
-  static async getStats(configurationId?: string): Promise<DashboardStats> {
+  static async getStats(
+    range: '7d' | '30d' | 'quarter' | 'total' = 'total',
+    configurationId?: string
+  ): Promise<DashboardStats> {
     try {
-      const params = configurationId ? { configuration_id: configurationId } : {};
+      const params: any = { range };
+      if (configurationId) params.configuration_id = configurationId;
       return await apiClient.get<DashboardStats>('/dashboard/stats', { params });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -68,7 +86,7 @@ export class DashboardApi {
   }
 
   static async getSentimentTrends(
-    range: '7d' | '30d' | 'quarter' = '7d',
+    range: '7d' | '30d' | 'quarter' | 'total' = '7d',
     configurationId?: string
   ): Promise<SentimentTrend[]> {
     try {
@@ -119,6 +137,21 @@ export class DashboardApi {
       return Array.isArray(response) ? response : response.data || [];
     } catch (error) {
       console.error('Error fetching recent posts:', error);
+      throw error;
+    }
+  }
+
+  static async getRiskDistribution(configurationId?: string): Promise<RiskDistribution> {
+    try {
+      const params = configurationId ? { configuration_id: configurationId } : {};
+      const response = await apiClient.get<RiskDistribution>('/dashboard/risk-distribution', { params });
+      return response || {
+        distribution: [],
+        total: 0,
+        averageRisk: 0,
+      };
+    } catch (error) {
+      console.error('Error fetching risk distribution:', error);
       throw error;
     }
   }

@@ -34,6 +34,12 @@ export interface Narrative {
     social: number;
     forums: number;
   };
+  platformDetails?: {
+    twitter: number;
+    reddit: number;
+    facebook: number;
+    news: number;
+  };
   contributingTopics: number;
   reinforcingPosts: number;
   influencerInvolvement: boolean;

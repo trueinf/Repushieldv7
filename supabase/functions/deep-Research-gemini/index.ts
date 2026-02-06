@@ -40,6 +40,9 @@ interface ResearchReport {
 }
 
 serve(async (req) => {
+  // Store researchId early for error handling
+  let researchId: string | null = null;
+  
   try {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
@@ -65,11 +68,13 @@ serve(async (req) => {
     const {
       originalQuery,
       clarifyingAnswers,
-      researchId,
       model,
       documentContext,
       mode = "comprehensive",
     } = requestData;
+    
+    // Store researchId for error handling
+    researchId = requestData.researchId;
 
     await supabaseClient
       .from("researches")
@@ -155,18 +160,20 @@ serve(async (req) => {
   } catch (error: any) {
     console.error("Error in deep research:", error);
 
-    try {
-      const supabaseClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-      );
-      const requestData: ResearchRequest = await req.json();
-      await supabaseClient
-        .from("researches")
-        .update({ status: "Failed" })
-        .eq("id", requestData.researchId);
-    } catch (updateError) {
-      console.error("Error updating failed status:", updateError);
+    // Update status to Failed if we have a researchId
+    if (researchId) {
+      try {
+        const supabaseClient = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+        );
+        await supabaseClient
+          .from("researches")
+          .update({ status: "Failed" })
+          .eq("id", researchId);
+      } catch (updateError) {
+        console.error("Error updating failed status:", updateError);
+      }
     }
 
     return new Response(
@@ -224,6 +231,40 @@ function getMockSearchResults() {
   ];
 }
 
+// Helper function to clean and parse JSON from LLM responses
+function parseJSONFromLLM(text: string): any {
+  let jsonText = text.trim();
+  
+  // Remove markdown code blocks
+  if (jsonText.includes("```json")) {
+    jsonText = jsonText.split("```json")[1].split("```")[0].trim();
+  } else if (jsonText.includes("```")) {
+    jsonText = jsonText.split("```")[1].split("```")[0].trim();
+  }
+  
+  // Try to parse the JSON
+  try {
+    return JSON.parse(jsonText);
+  } catch (error) {
+    // If parsing fails, try to fix common issues
+    console.log("Initial JSON parse failed, attempting to fix common issues");
+    
+    // Remove any trailing commas before } or ]
+    jsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
+    
+    // Try to find JSON object boundaries
+    const firstBrace = jsonText.indexOf('{');
+    const lastBrace = jsonText.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+    }
+    
+    // Try parsing again
+    return JSON.parse(jsonText);
+  }
+}
+
 async function generateResearchReport(
   query: string,
   clarifyingAnswers: string | undefined,
@@ -244,7 +285,8 @@ ${documentContext ? `DOCUMENT CONTEXT:\n${documentContext.substring(0, 5000)}\n\
 SOURCES:
 ${sourcesText}
 
-Generate a detailed research report in the following JSON format:
+Generate a detailed research report in the following JSON format. Make sure the JSON is valid with proper escaping of quotes and special characters:
+
 {
   "executiveSummary": "A 2-3 paragraph executive summary of the research findings",
   "keyFindings": [
@@ -262,11 +304,14 @@ Generate a detailed research report in the following JSON format:
   "conclusion": "A 2-3 paragraph conclusion summarizing the research"
 }
 
-IMPORTANT:
+CRITICAL FORMATTING REQUIREMENTS:
+- Return ONLY valid JSON, no markdown formatting
+- Escape all quotes inside strings with backslash
+- Do not use newlines inside string values - use \\n instead
+- Ensure no trailing commas
 - Use citations [1], [2], etc. to reference sources
 - Ensure all findings are supported by the provided sources
-- Be objective and analytical
-- Return ONLY valid JSON, no markdown formatting`;
+- Be objective and analytical`;
 
   try {
     const response = await fetch(
@@ -305,14 +350,14 @@ IMPORTANT:
     const generatedText =
       data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    let jsonText = generatedText.trim();
-    if (jsonText.includes("```json")) {
-      jsonText = jsonText.split("```json")[1].split("```")[0].trim();
-    } else if (jsonText.includes("```")) {
-      jsonText = jsonText.split("```")[1].split("```")[0].trim();
+    if (!generatedText) {
+      throw new Error("No text generated from Gemini API");
     }
 
-    const report = JSON.parse(jsonText);
+    console.log("Raw Gemini response (first 500 chars):", generatedText.substring(0, 500));
+
+    // Use the improved JSON parser
+    const report = parseJSONFromLLM(generatedText);
 
     const formattedSources = sources.map((source) => ({
       url: source.url,
@@ -337,16 +382,11 @@ IMPORTANT:
 
 function getGeminiModelName(model: string): string {
   const modelMap: Record<string, string> = {
-    "gemini-2.5-flash": "models/gemini-2.0-flash-exp",
+    "gemini-2.5-flash": "models/gemini-2.0-flash",
     "gemini-1.5-pro-latest": "models/gemini-1.5-pro-latest",
+    
     "gemini-pro": "models/gemini-pro",
   };
 
-  return modelMap[model] || "models/gemini-2.0-flash-exp";
+  return modelMap[model] || "models/gemini-2.0-flash";
 }
-
-
-
-
-
-

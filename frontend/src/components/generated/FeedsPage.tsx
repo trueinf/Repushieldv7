@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X as XIcon, Facebook, MessageSquare, Globe, TrendingUp, Clock, ThumbsUp, Share2, MessageCircle, ChevronRight, MoreVertical, Filter, Calendar, Eye, ChevronDown, Zap, BarChart2, Loader2, RefreshCw, Rss, Languages, CheckCircle, AlertTriangle, Shield } from 'lucide-react';
+import { Search, X as XIcon, Facebook, MessageSquare, Globe, TrendingUp, Clock, ThumbsUp, Share2, MessageCircle, ChevronRight, ChevronLeft, MoreVertical, Filter, Calendar, Eye, ChevronDown, Zap, BarChart2, Loader2, RefreshCw, Rss, Languages, CheckCircle, AlertTriangle, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { PostsApi, type Post } from '../../services/postsApi';
@@ -569,12 +569,12 @@ const FilterChip = ({
   </button>;
 
 // Main Feeds Page Component
-export const FeedsPage = () => {
+export const FeedsPage = ({ topicFilter, onClearTopicFilter, onBackToTopics }: { topicFilter?: string | null; onClearTopicFilter?: () => void; onBackToTopics?: () => void }) => {
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedContent, setTranslatedContent] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
-    dateRange: '24h',
+    dateRange: 'all',
     platforms: [],
     sentiments: [],
     riskScores: [],
@@ -594,7 +594,7 @@ export const FeedsPage = () => {
     setCurrentOffset(0);
     setHasMore(true);
     loadPosts(false); // Always reload from start when filters change
-  }, [filters.platforms, filters.sentiments, filters.riskScores, filters.dateRange, sortBy]);
+  }, [filters.platforms, filters.sentiments, filters.riskScores, filters.dateRange, sortBy, topicFilter]);
 
   // Also reload when search query changes (with debounce)
   useEffect(() => {
@@ -623,6 +623,7 @@ export const FeedsPage = () => {
       const fetchedPosts = await PostsApi.getAll({
         configuration_id: undefined, // Always show all posts, not filtered by configuration
         platform: filters.platforms.length === 1 ? filters.platforms[0] : undefined,
+        topic_id: topicFilter || undefined,
         limit: 500, // Load 500 posts at a time
         offset: offset,
         sort: sortBy === 'latest' ? 'created_at' : sortBy === 'risk' ? 'risk_score' : 'created_at',
@@ -707,6 +708,22 @@ export const FeedsPage = () => {
   });
 
   return <div className="flex-1 flex flex-col bg-[#F8FAFC] min-h-0">
+      {/* Topic Filter Banner */}
+      {topicFilter && (
+        <div className="bg-[#1F9D8A] text-white px-6 py-3 flex items-center">
+          <button 
+            onClick={onBackToTopics}
+            className="flex items-center space-x-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+          >
+            <ChevronLeft size={16} />
+            <span>Back to Topics</span>
+          </button>
+          <div className="flex items-center space-x-2 ml-4">
+            <Filter size={16} />
+            <span className="text-sm font-medium">Showing posts from selected topic</span>
+          </div>
+        </div>
+      )}
       {/* Top Context & Control Bar (Sticky) */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         {/* Search Bar */}

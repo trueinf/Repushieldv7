@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, X as XIcon, TrendingUp, TrendingDown, Clock, Calendar, ChevronDown, Filter, Sparkles, ArrowUpRight, ArrowDownRight, MessageSquare, Globe, BarChart2, AlertTriangle, Eye, StickyNote, Bell, CheckCircle, MoreVertical, ChevronRight } from 'lucide-react';
+import { Search, X as XIcon, TrendingUp, TrendingDown, Sparkles, ArrowUpRight, MessageSquare, Globe, BarChart2, AlertTriangle, Eye, Bell, CheckCircle, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { topicsApi, Topic as TopicType } from '../../services/topicsApi';
@@ -12,9 +12,6 @@ type TopicStatus = 'emerging' | 'active' | 'stabilizing' | 'dormant';
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 type ViewMode = 'grid' | 'table';
 type SortOption = 'risk' | 'growth' | 'volume' | 'negative';
-type DateRangeOption = '24h' | '7d' | '30d' | 'custom';
-type PlatformMix = 'news-heavy' | 'social-heavy' | 'mixed';
-type SentimentMix = 'positive' | 'neutral' | 'negative';
 interface Topic {
   id: string;
   name: string;
@@ -32,6 +29,12 @@ interface Topic {
     news: number;
     social: number;
     forums: number;
+  };
+  platformDetails?: {
+    twitter: number;
+    reddit: number;
+    facebook: number;
+    news: number;
   };
   entities: string[];
   location?: string;
@@ -363,26 +366,33 @@ const Sparkline = ({
 
 // Platform Distribution Component
 const PlatformDistribution = ({
-  platforms
+  platformDetails
 }: {
-  platforms: {
+  platformDetails?: {
+    twitter: number;
+    reddit: number;
+    facebook: number;
     news: number;
-    social: number;
-    forums: number;
   };
 }) => {
-  return <div className="flex items-center space-x-1">
-      {platforms.news > 0 && <div className="flex items-center space-x-0.5 text-gray-600 text-[10px] font-medium">
-          <Globe size={10} />
-          <span>{platforms.news}%</span>
+  if (!platformDetails) return null;
+  
+  return <div className="flex items-center space-x-2">
+      {platformDetails.twitter > 0 && <div className="flex items-center space-x-1 text-[10px] font-medium">
+          <span className="w-4 h-4 bg-black rounded flex items-center justify-center text-white text-[8px] font-bold">𝕏</span>
+          <span className="text-gray-700">{platformDetails.twitter}%</span>
         </div>}
-      {platforms.social > 0 && <div className="flex items-center space-x-0.5 text-blue-600 text-[10px] font-medium">
-          <MessageSquare size={10} />
-          <span>{platforms.social}%</span>
+      {platformDetails.reddit > 0 && <div className="flex items-center space-x-1 text-[10px] font-medium">
+          <span className="w-4 h-4 bg-orange-500 rounded flex items-center justify-center text-white text-[8px] font-bold">R</span>
+          <span className="text-gray-700">{platformDetails.reddit}%</span>
         </div>}
-      {platforms.forums > 0 && <div className="flex items-center space-x-0.5 text-orange-600 text-[10px] font-medium">
-          <BarChart2 size={10} />
-          <span>{platforms.forums}%</span>
+      {platformDetails.facebook > 0 && <div className="flex items-center space-x-1 text-[10px] font-medium">
+          <span className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center text-white text-[8px] font-bold">f</span>
+          <span className="text-gray-700">{platformDetails.facebook}%</span>
+        </div>}
+      {platformDetails.news > 0 && <div className="flex items-center space-x-1 text-gray-600 text-[10px] font-medium">
+          <Globe size={12} />
+          <span>{platformDetails.news}%</span>
         </div>}
     </div>;
 };
@@ -390,10 +400,12 @@ const PlatformDistribution = ({
 // Topic Card Component (Grid View)
 const TopicCard = ({
   topic,
-  onSelect
+  onSelect,
+  onViewFeed
 }: {
   topic: Topic;
   onSelect: () => void;
+  onViewFeed?: () => void;
 }) => {
   const dominantSentiment = topic.sentiment.positive > topic.sentiment.negative ? 'positive' : topic.sentiment.negative > topic.sentiment.positive ? 'negative' : 'neutral';
   return <motion.div layout initial={{
@@ -442,7 +454,7 @@ const TopicCard = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
             <span className="text-xs text-gray-500 font-medium">Platforms</span>
-            <PlatformDistribution platforms={topic.platforms} />
+            <PlatformDistribution platformDetails={topic.platformDetails} />
           </div>
         </div>
 
@@ -460,16 +472,16 @@ const TopicCard = ({
 
       {/* Card Footer Actions */}
       <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-        <div className="flex items-center space-x-2">
-          <button className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white rounded transition-colors">
-            <Eye size={12} />
-            <span>View Feed</span>
-          </button>
-          <button className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white rounded transition-colors">
-            <StickyNote size={12} />
-            <span>Note</span>
-          </button>
-        </div>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewFeed?.();
+          }}
+          className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white rounded transition-colors"
+        >
+          <Eye size={12} />
+          <span>View Feed</span>
+        </button>
         <button className="px-3 py-1.5 text-xs font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors">
           Promote
         </button>
@@ -515,7 +527,7 @@ const TopicTableRow = ({
         <VelocityIndicator velocity={topic.velocity} />
       </td>
       <td className="px-4 py-4">
-        <PlatformDistribution platforms={topic.platforms} />
+        <PlatformDistribution platformDetails={topic.platformDetails} />
       </td>
       <td className="px-4 py-4 text-xs text-gray-500">
         {topic.lastUpdated}
@@ -531,10 +543,12 @@ const TopicTableRow = ({
 // Topic Detail Modal
 const TopicDetailPanel = ({
   topic,
-  onClose
+  onClose,
+  onViewFeed
 }: {
   topic: Topic | null;
   onClose: () => void;
+  onViewFeed?: () => void;
 }) => {
   if (!topic) return null;
   return <AnimatePresence>
@@ -657,27 +671,65 @@ const TopicDetailPanel = ({
           <section className="pt-6 border-t border-gray-100">
             <h3 className="text-sm font-bold text-[#0F1C2E] uppercase tracking-wider mb-4">Platform Distribution</h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Globe size={16} className="text-gray-600" />
-                  <span className="text-sm font-medium">News</span>
+              {(topic.platformDetails?.twitter || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium flex items-center space-x-2">
+                      <span className="w-5 h-5 bg-black rounded flex items-center justify-center text-white text-[10px] font-bold">𝕏</span>
+                      <span>Twitter/X</span>
+                    </span>
+                    <span className="font-bold text-[#0F1C2E]">{topic.platformDetails?.twitter}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-black rounded-full" style={{ width: `${topic.platformDetails?.twitter}%` }} />
+                  </div>
                 </div>
-                <span className="text-sm font-bold text-[#0F1C2E]">{topic.platforms.news}%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <MessageSquare size={16} className="text-blue-600" />
-                  <span className="text-sm font-medium">Social Media</span>
+              )}
+              {(topic.platformDetails?.reddit || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium flex items-center space-x-2">
+                      <span className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center text-white text-[10px] font-bold">R</span>
+                      <span>Reddit</span>
+                    </span>
+                    <span className="font-bold text-[#0F1C2E]">{topic.platformDetails?.reddit}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${topic.platformDetails?.reddit}%` }} />
+                  </div>
                 </div>
-                <span className="text-sm font-bold text-[#0F1C2E]">{topic.platforms.social}%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <BarChart2 size={16} className="text-orange-600" />
-                  <span className="text-sm font-medium">Forums & Blogs</span>
+              )}
+              {(topic.platformDetails?.facebook || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium flex items-center space-x-2">
+                      <span className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white text-[10px] font-bold">f</span>
+                      <span>Facebook</span>
+                    </span>
+                    <span className="font-bold text-[#0F1C2E]">{topic.platformDetails?.facebook}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-600 rounded-full" style={{ width: `${topic.platformDetails?.facebook}%` }} />
+                  </div>
                 </div>
-                <span className="text-sm font-bold text-[#0F1C2E]">{topic.platforms.forums}%</span>
-              </div>
+              )}
+              {(topic.platformDetails?.news || 0) > 0 && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium flex items-center space-x-2">
+                      <Globe size={16} className="text-gray-600" />
+                      <span>News</span>
+                    </span>
+                    <span className="font-bold text-[#0F1C2E]">{topic.platformDetails?.news}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gray-600 rounded-full" style={{ width: `${topic.platformDetails?.news}%` }} />
+                  </div>
+                </div>
+              )}
+              {(!topic.platformDetails || (topic.platformDetails.twitter === 0 && topic.platformDetails.reddit === 0 && topic.platformDetails.facebook === 0 && topic.platformDetails.news === 0)) && (
+                <p className="text-sm text-gray-500">No platform data available</p>
+              )}
             </div>
           </section>
 
@@ -728,21 +780,15 @@ const TopicDetailPanel = ({
 
           {/* Action Buttons */}
           <section className="pt-6 border-t border-gray-100">
-            <div className="grid grid-cols-2 gap-3">
-              <button className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            <div className="grid grid-cols-1 gap-3">
+              <button 
+                onClick={() => onViewFeed?.()}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
                 View Feed
               </button>
-              <button className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Add Note
-              </button>
-              <button className="px-4 py-2 text-sm font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors col-span-2">
+              <button className="px-4 py-2 text-sm font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors">
                 Promote to Narrative
-              </button>
-              <button className="px-4 py-2 text-sm font-semibold text-orange-700 border border-orange-300 rounded-lg hover:bg-orange-50 transition-colors">
-                Edit Topic
-              </button>
-              <button className="px-4 py-2 text-sm font-semibold text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Archive
               </button>
             </div>
           </section>
@@ -753,33 +799,12 @@ const TopicDetailPanel = ({
     </AnimatePresence>;
 };
 
-// Filter Chip Component
-const FilterChip = ({
-  label,
-  active,
-  onClick,
-  onRemove
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  onRemove?: () => void;
-}) => <button onClick={onClick} className={cn('flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all', active ? 'bg-[#1F9D8A] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:border-[#1F9D8A]')}>
-    <span>{label}</span>
-    {active && onRemove && <XIcon size={12} onClick={e => {
-    e.stopPropagation();
-    onRemove();
-  }} className="hover:scale-110" />}
-  </button>;
-
 // Main Topics Page Component
-export const TopicsPage = () => {
+export const TopicsPage = ({ onNavigateToFeed }: { onNavigateToFeed?: (topicId: string) => void }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortOption>('risk');
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateRange, setDateRange] = useState<DateRangeOption>('7d');
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
   const [configurationId, setConfigurationId] = useState<string | null>(null);
@@ -851,33 +876,8 @@ export const TopicsPage = () => {
           </div>
         </div>
 
-        {/* Filters & Controls */}
-        <div className="px-6 py-4 flex items-center justify-between">
-          {/* Filters */}
-          <div className="flex items-center space-x-2 flex-wrap gap-2">
-            <Filter size={16} className="text-gray-500" />
-
-            {/* Date Range */}
-            <div className="relative group">
-              <button className="flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-gray-700 border border-gray-300 hover:border-[#1F9D8A] transition-all">
-                <Calendar size={12} />
-                <span>Last 7 days</span>
-                <ChevronDown size={12} />
-              </button>
-            </div>
-
-            {/* Platform Filters */}
-            <FilterChip label="News-heavy" active={false} onClick={() => {}} />
-            <FilterChip label="Social-heavy" active={false} onClick={() => {}} />
-
-            {/* Sentiment & Risk Filters */}
-            <div className="h-4 w-px bg-gray-300 mx-1" />
-            <FilterChip label="High Risk (≥7)" active={false} onClick={() => {}} />
-            <FilterChip label="Mostly Negative" active={false} onClick={() => {}} />
-            <FilterChip label="Rising" active={false} onClick={() => {}} />
-          </div>
-
-          {/* Right Controls */}
+        {/* Controls */}
+        <div className="px-6 py-4 flex items-center justify-end">
           <div className="flex items-center space-x-4">
             {/* Sort */}
             <div className="flex items-center space-x-2">
@@ -899,11 +899,6 @@ export const TopicsPage = () => {
                 Table
               </button>
             </div>
-
-            {/* Create Topic */}
-            <button className="px-4 py-1.5 text-xs font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors">
-              + Create Topic
-            </button>
           </div>
         </div>
       </div>
@@ -926,7 +921,7 @@ export const TopicsPage = () => {
           </div>
         ) : viewMode === 'grid' ? (
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTopics.map(topic => <TopicCard key={topic.id} topic={topic} onSelect={() => setSelectedTopic(topic)} />)}
+            {filteredTopics.map(topic => <TopicCard key={topic.id} topic={topic} onSelect={() => setSelectedTopic(topic)} onViewFeed={() => onNavigateToFeed?.(topic.id)} />)}
           </div>
         ) : (
           <div className="max-w-7xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -953,6 +948,6 @@ export const TopicsPage = () => {
       </div>
 
       {/* Topic Detail Side Panel */}
-      {selectedTopic && <TopicDetailPanel topic={selectedTopic} onClose={() => setSelectedTopic(null)} />}
+      {selectedTopic && <TopicDetailPanel topic={selectedTopic} onClose={() => setSelectedTopic(null)} onViewFeed={() => onNavigateToFeed?.(selectedTopic.id)} />}
     </div>;
 };

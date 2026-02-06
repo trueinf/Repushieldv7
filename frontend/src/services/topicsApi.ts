@@ -34,6 +34,12 @@ export interface Topic {
     social: number;
     forums: number;
   };
+  platformDetails?: {
+    twitter: number;
+    reddit: number;
+    facebook: number;
+    news: number;
+  };
   entities: string[];
   firstDetected: string;
   lastUpdated: string;
