@@ -9,7 +9,7 @@ import { NarrativesPage } from './NarrativesPage';
 import { ResearchPage } from './ResearchPage';
 import { ComposePage } from './ComposePage';
 import { ConfigurationPage } from './ConfigurationPage';
-import { DashboardApi, type DashboardStats, type SentimentTrend, type PriorityNarrative, type SourceChannel, type RecentPost, type RiskDistribution } from '../../services/dashboardApi';
+import { DashboardApi, type DashboardStats, type SentimentTrend, type PriorityNarrative, type SourceChannel, type RecentPost, type RiskDistribution, type IngestionPoint } from '../../services/dashboardApi';
 import { ConfigurationApi } from '../../services/configurationApi';
 
 // Types
@@ -129,6 +129,15 @@ const COLORS = {
   card: '#FFFFFF'
 };
 
+// Helpers
+const getPreviousFromTrend = (current: number, trend: number): number => {
+  if (!isFinite(current) || !isFinite(trend)) return 0;
+  const ratio = 1 + trend / 100;
+  if (ratio === 0) return 0;
+  const previous = current / ratio;
+  return previous > 0 && isFinite(previous) ? previous : 0;
+};
+
 // Components
 const StatCard = ({
   title,
@@ -140,7 +149,7 @@ const StatCard = ({
   value: string;
   trend: string;
   trendType: 'up' | 'down';
-}) => <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+}) => <div className="bg-white px-6 py-6 md:px-8 md:py-7 rounded-2xl border border-gray-200 shadow-sm h-full">
     <div className="flex justify-between items-start mb-4">
       <p className="text-gray-500 text-sm font-medium uppercase tracking-wider">{title}</p>
       <div className={cn("flex items-center text-xs font-bold px-2 py-1 rounded-full", trendType === 'up' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600")}>
@@ -148,8 +157,43 @@ const StatCard = ({
         {trend}
       </div>
     </div>
-    <h3 className="text-3xl font-bold text-[#0F1C2E]">{value}</h3>
+    <h3 className="text-3xl md:text-4xl font-bold text-[#0F1C2E] tracking-tight">{value}</h3>
   </div>;
+
+const ComparisonBar = ({
+  current,
+  previous,
+  color,
+  format
+}: {
+  current: number;
+  previous: number;
+  color: string;
+  format?: (value: number) => string;
+}) => {
+  const max = Math.max(current, previous, 1);
+  const currentWidth = (current / max) * 100;
+  const previousWidth = (previous / max) * 100;
+
+  return <div className="mt-2 space-y-1">
+      <div className="relative h-1.5 rounded-full bg-gray-200 overflow-hidden">
+        {/* Previous period (background band) */}
+        {previous > 0 && <div className="absolute inset-y-0 left-0 rounded-full bg-gray-300" style={{
+        width: `${previousWidth}%`
+      }} />}
+        {/* Current period (foreground) */}
+        {current > 0 && <div className="absolute inset-y-0 left-0 rounded-full" style={{
+        width: `${currentWidth}%`,
+        backgroundColor: color
+      }} />}
+      </div>
+      <div className="flex items-center justify-between text-[10px] text-gray-500">
+        <span>Prev: {format ? format(previous) : Math.round(previous).toString()}</span>
+        <span>Now: {format ? format(current) : Math.round(current).toString()}</span>
+      </div>
+    </div>;
+};
+
 const NarrativeRow = ({
   narrative,
   onClick
@@ -199,13 +243,15 @@ export const RepuShield = () => {
   const [sentimentRange, setSentimentRange] = useState<'7d' | '30d' | 'quarter' | 'total'>('7d');
   const [configurationId, setConfigurationId] = useState<string | null>(null);
   const [activeConfiguration, setActiveConfiguration] = useState<any | null>(null);
+  const [ingestionRange, setIngestionRange] = useState<'7d' | '30d' | 'quarter'>('7d');
+  const [ingestionData, setIngestionData] = useState<IngestionPoint[]>([]);
 
   // Load dashboard data
   useEffect(() => {
     if (activeTab === 'dashboard') {
       loadDashboardData();
     }
-  }, [activeTab, sentimentRange]);
+  }, [activeTab, sentimentRange, ingestionRange]);
 
   // Auto-refresh real-time feed and priority narratives every 30 seconds
   useEffect(() => {
@@ -254,13 +300,14 @@ export const RepuShield = () => {
     try {
       // Dashboard shows OVERALL data (all configurations), not filtered by configuration
       // Stats and trends are filtered by the selected time range
-      const [stats, trends, narratives, channels, posts, riskDist] = await Promise.all([
+      const [stats, trends, narratives, channels, posts, riskDist, ingestion] = await Promise.all([
         DashboardApi.getStats(sentimentRange, undefined), // Filter by selected time range
         DashboardApi.getSentimentTrends(sentimentRange, undefined), // Sentiment trends filtered by range
         DashboardApi.getPriorityNarratives(4, undefined), // No configuration filter
         DashboardApi.getSourceChannels(undefined), // No configuration filter
         DashboardApi.getRecentPosts(5, undefined), // Show only latest 5 posts
         DashboardApi.getRiskDistribution(undefined), // No configuration filter
+        DashboardApi.getIngestionVolume(ingestionRange, undefined),
       ]);
 
       setDashboardStats(stats);
@@ -269,6 +316,7 @@ export const RepuShield = () => {
       setSourceChannels(channels.channels);
       setRecentPosts(posts);
       setRiskDistribution(riskDist);
+      setIngestionData(ingestion);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -302,7 +350,8 @@ export const RepuShield = () => {
   };
 
   // @return
-  return <div className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden font-sans text-[#0F1C2E]">
+  return (
+    <div className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden font-sans text-[#0F1C2E]">
       {/* Sidebar */}
       <motion.aside initial={false} animate={{
       width: sidebarOpen ? 260 : 80
@@ -356,91 +405,85 @@ export const RepuShield = () => {
 
         {/* Scrollable View Area */}
         {activeTab === 'feed' ? <FeedsPage topicFilter={feedTopicFilter} onClearTopicFilter={() => setFeedTopicFilter(null)} onBackToTopics={() => { setFeedTopicFilter(null); setActiveTab('topics'); }} /> : activeTab === 'topics' ? <TopicsPage onNavigateToFeed={(topicId) => { setFeedTopicFilter(topicId); setActiveTab('feed'); }} /> : activeTab === 'narratives' ? <NarrativesPage /> : activeTab === 'research' ? <ResearchPage /> : activeTab === 'compose' ? <ComposePage /> : activeTab === 'configuration' ? <ConfigurationPage onActivate={() => setActiveTab('feed')} /> : <div className="flex-1 overflow-y-auto p-8 bg-[#F8FAFC]">
-            <div className="max-w-7xl mx-auto space-y-8">
+            <div className="max-w-7xl mx-auto space-y-6">
 
             {/* Configuration Context Bar */}
             {activeConfiguration ? (
               <div className={`border rounded-xl shadow-sm p-4 ${activeConfiguration._isActive ? 'bg-white border-gray-200' : 'bg-amber-50 border-amber-200'}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-6">
-                    {/* Configuration Name with Status */}
-                    <div className="flex items-center space-x-3">
-                      {activeConfiguration._isActive ? (
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                      ) : (
-                        <div className="w-2 h-2 bg-amber-500 rounded-full" />
-                      )}
-                      <div>
-                        <p className={`text-xs font-medium uppercase tracking-wider ${activeConfiguration._isActive ? 'text-gray-500' : 'text-amber-600'}`}>
-                          {activeConfiguration._isActive ? 'Active Configuration' : 'Not Active'}
-                        </p>
-                        <p className="text-lg font-bold text-[#0F1C2E]">{activeConfiguration.entityDetails?.name || 'Unnamed Configuration'}</p>
-                      </div>
-                    </div>
-
-                    <div className="h-10 w-px bg-gray-200" />
-
-                    {/* Keywords Count */}
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500 font-medium">Keywords</p>
-                      <p className="text-lg font-bold text-[#0F1C2E]">
-                        {(activeConfiguration.ontology?.coreKeywords?.length || 0) + 
-                         (activeConfiguration.ontology?.associatedKeywords?.length || 0) + 
-                         (activeConfiguration.ontology?.narrativeKeywords?.length || 0)}
-                      </p>
-                    </div>
-
-                    <div className="h-10 w-px bg-gray-200" />
-
-                    {/* Platforms */}
+                <div className="grid grid-cols-1 md:grid-cols-5 items-center gap-4 md:gap-6">
+                  {/* Configuration Name with Status */}
+                  <div className="flex items-center space-x-3">
+                    {activeConfiguration._isActive ? (
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    ) : (
+                      <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                    )}
                     <div>
-                      <p className="text-xs text-gray-500 font-medium mb-1">Platforms</p>
-                      <div className="flex items-center space-x-2">
-                        {activeConfiguration.platformConfig?.platforms?.includes('twitter') && (
-                          <span className="w-6 h-6 bg-black rounded flex items-center justify-center text-white text-[10px] font-bold">𝕏</span>
-                        )}
-                        {activeConfiguration.platformConfig?.platforms?.includes('reddit') && (
-                          <span className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-white text-[10px] font-bold">R</span>
-                        )}
-                        {activeConfiguration.platformConfig?.platforms?.includes('facebook') && (
-                          <span className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white text-[10px] font-bold">f</span>
-                        )}
-                        {activeConfiguration.platformConfig?.platforms?.includes('news') && (
-                          <span className="w-6 h-6 bg-gray-600 rounded flex items-center justify-center text-white text-[10px] font-bold">
-                            <Globe size={12} />
-                          </span>
-                        )}
-                        {(!activeConfiguration.platformConfig?.platforms || activeConfiguration.platformConfig.platforms.length === 0) && (
-                          <span className="text-sm text-gray-400">None</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="h-10 w-px bg-gray-200" />
-
-                    {/* Last Updated */}
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500 font-medium">Last Updated</p>
-                      <p className="text-sm font-semibold text-[#0F1C2E]">
-                        {activeConfiguration.updatedAt 
-                          ? new Date(activeConfiguration.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                          : 'Unknown'}
+                      <p className={`text-xs font-medium uppercase tracking-wider ${activeConfiguration._isActive ? 'text-gray-500' : 'text-amber-600'}`}>
+                        {activeConfiguration._isActive ? 'Active Configuration' : 'Not Active'}
                       </p>
+                      <p className="text-lg font-bold text-[#0F1C2E]">{activeConfiguration.entityDetails?.name || 'Unnamed Configuration'}</p>
                     </div>
                   </div>
 
+                  {/* Keywords Count */}
+                  <div className="text-center md:border-l md:border-gray-200 md:pl-6">
+                    <p className="text-xs text-gray-500 font-medium">Keywords</p>
+                    <p className="text-lg font-bold text-[#0F1C2E]">
+                      {(activeConfiguration.ontology?.coreKeywords?.length || 0) + 
+                       (activeConfiguration.ontology?.associatedKeywords?.length || 0) + 
+                       (activeConfiguration.ontology?.narrativeKeywords?.length || 0)}
+                    </p>
+                  </div>
+
+                  {/* Platforms */}
+                  <div className="md:border-l md:border-gray-200 md:pl-6">
+                    <p className="text-xs text-gray-500 font-medium mb-1">Platforms</p>
+                    <div className="flex items-center space-x-2">
+                      {activeConfiguration.platformConfig?.platforms?.includes('twitter') && (
+                        <span className="w-6 h-6 bg-black rounded flex items-center justify-center text-white text-[10px] font-bold">𝕏</span>
+                      )}
+                      {activeConfiguration.platformConfig?.platforms?.includes('reddit') && (
+                        <span className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-white text-[10px] font-bold">R</span>
+                      )}
+                      {activeConfiguration.platformConfig?.platforms?.includes('facebook') && (
+                        <span className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white text-[10px] font-bold">f</span>
+                      )}
+                      {activeConfiguration.platformConfig?.platforms?.includes('news') && (
+                        <span className="w-6 h-6 bg-gray-600 rounded flex items-center justify-center text-white text-[10px] font-bold">
+                          <Globe size={12} />
+                        </span>
+                      )}
+                      {(!activeConfiguration.platformConfig?.platforms || activeConfiguration.platformConfig.platforms.length === 0) && (
+                        <span className="text-sm text-gray-400">None</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Last Updated */}
+                  <div className="text-center md:border-l md:border-gray-200 md:pl-6">
+                    <p className="text-xs text-gray-500 font-medium">Last Updated</p>
+                    <p className="text-sm font-semibold text-[#0F1C2E]">
+                      {activeConfiguration.updatedAt 
+                        ? new Date(activeConfiguration.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : 'Unknown'}
+                    </p>
+                  </div>
+
                   {/* Edit/Activate Button */}
-                  <button 
-                    onClick={() => setActiveTab('configuration')}
-                    className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      activeConfiguration._isActive 
-                        ? 'text-[#1F9D8A] hover:bg-[#1F9D8A]/10' 
-                        : 'text-white bg-[#1F9D8A] hover:bg-[#188976]'
-                    }`}
-                  >
-                    <Settings size={16} />
-                    <span>{activeConfiguration._isActive ? 'Edit' : 'Activate'}</span>
-                  </button>
+                  <div className="flex md:justify-end">
+                    <button 
+                      onClick={() => setActiveTab('configuration')}
+                      className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        activeConfiguration._isActive 
+                          ? 'text-[#1F9D8A] hover:bg-[#1F9D8A]/10' 
+                          : 'text-white bg-[#1F9D8A] hover:bg-[#188976]'
+                      }`}
+                    >
+                      <Settings size={16} />
+                      <span>{activeConfiguration._isActive ? 'Edit' : 'Activate'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -468,7 +511,7 @@ export const RepuShield = () => {
             
             {/* Summary Row */}
             <section className="flex justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
                 {dashboardLoading ? (
                   <>
                     <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-pulse">
@@ -514,6 +557,8 @@ export const RepuShield = () => {
                 )}
               </div>
             </section>
+
+            {/* Period-over-period comparison - removed per user request */}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Sentiment Chart */}
@@ -771,34 +816,89 @@ export const RepuShield = () => {
               </div>
             </div>
 
+            {/* New Mentions Over Time */}
+            <section className="mt-6">
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold">New Mentions Over Time</h3>
+                    <p className="text-sm text-gray-500">Monitoring activity by day</p>
+                  </div>
+                  <select
+                    value={ingestionRange}
+                    onChange={e => setIngestionRange(e.target.value as '7d' | '30d' | 'quarter')}
+                    className="bg-gray-50 border border-gray-200 text-sm rounded-lg p-2 focus:ring-[#1F9D8A] focus:border-[#1F9D8A]"
+                  >
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
+                    <option value="quarter">Last Quarter</option>
+                  </select>
+                </div>
+                <div className="h-[260px] w-full">
+                  {dashboardLoading ? (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="animate-pulse text-gray-400">Loading...</div>
+                    </div>
+                  ) : ingestionData && ingestionData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={ingestionData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                        <XAxis dataKey="date" tick={{ fill: '#6B7280', fontSize: 11 }} />
+                        <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#FFF',
+                            borderRadius: '8px',
+                            border: '1px solid #E5E7EB',
+                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                          }}
+                        />
+                        <Bar dataKey="total" fill="#1F9D8A" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-400">
+                      No recent mentions
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
             {/* Bottom Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Media Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-bold mb-6">Source Channels</h3>
                 <div className="space-y-4">
-                  {(sourceChannels.length > 0 ? sourceChannels.map(ch => ({
-                    label: ch.label,
-                    value: ch.value,
-                    color: ch.label === 'Social Media' ? '#1F9D8A' : 
-                           ch.label === 'News Outlets' ? '#0F1C2E' : 
-                           ch.label === 'Forums & Blogs' ? '#F59E0B' : '#E5E7EB'
-                  })) : [{
-                  label: 'Social Media',
-                  value: 65,
+                  {(sourceChannels.length > 0 ? sourceChannels.map(ch => {
+                    const label = ch.label === 'news' ? 'News' : ch.label === 'twitter' ? 'Twitter' : ch.label === 'facebook' ? 'Facebook' : ch.label === 'reddit' ? 'Reddit' : ch.label;
+                    const color = ch.label === 'twitter'
+                      ? '#1F9D8A'
+                      : ch.label === 'facebook'
+                      ? '#1D4ED8'
+                      : ch.label === 'reddit'
+                      ? '#F97316'
+                      : ch.label === 'news'
+                      ? '#0F1C2E'
+                      : '#E5E7EB';
+                    return { label, value: ch.value, color };
+                  }) : [{
+                  label: 'Twitter',
+                  value: 40,
                   color: '#1F9D8A'
                 }, {
-                  label: 'News Outlets',
+                  label: 'Facebook',
+                  value: 25,
+                  color: '#1D4ED8'
+                }, {
+                  label: 'Reddit',
                   value: 20,
+                  color: '#F97316'
+                }, {
+                  label: 'News',
+                  value: 15,
                   color: '#0F1C2E'
-                }, {
-                  label: 'Forums & Blogs',
-                  value: 10,
-                  color: '#F59E0B'
-                }, {
-                  label: 'Internal Comms',
-                  value: 5,
-                  color: '#E5E7EB'
                 }]).map((item, i) => <div key={i} className="space-y-1.5">
                       <div className="flex justify-between text-sm font-medium">
                         <span>{item.label}</span>
@@ -927,5 +1027,6 @@ export const RepuShield = () => {
           </div>
         </motion.button>
       </main>
-    </div>;
+    </div>
+  );
 };

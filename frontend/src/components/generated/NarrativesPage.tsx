@@ -686,46 +686,46 @@ const NarrativeDetailPanel = ({
             <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Platform Distribution</h4>
             <div className="space-y-2">
               {(narrative.platformDetails?.twitter || 0) > 0 && (
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-700 font-medium flex items-center space-x-2">
                       <span className="w-5 h-5 bg-black rounded flex items-center justify-center text-white text-[10px] font-bold">𝕏</span>
                       <span>Twitter/X</span>
-                    </span>
+                  </span>
                     <span className="font-bold text-[#0F1C2E]">{narrative.platformDetails?.twitter}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-black rounded-full" style={{ width: `${narrative.platformDetails?.twitter}%` }} />
-                  </div>
                 </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-black rounded-full" style={{ width: `${narrative.platformDetails?.twitter}%` }} />
+                </div>
+              </div>
               )}
               {(narrative.platformDetails?.reddit || 0) > 0 && (
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-700 font-medium flex items-center space-x-2">
                       <span className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center text-white text-[10px] font-bold">R</span>
                       <span>Reddit</span>
-                    </span>
+                  </span>
                     <span className="font-bold text-[#0F1C2E]">{narrative.platformDetails?.reddit}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${narrative.platformDetails?.reddit}%` }} />
-                  </div>
                 </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${narrative.platformDetails?.reddit}%` }} />
+                </div>
+              </div>
               )}
               {(narrative.platformDetails?.facebook || 0) > 0 && (
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-700 font-medium flex items-center space-x-2">
                       <span className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white text-[10px] font-bold">f</span>
                       <span>Facebook</span>
-                    </span>
+                  </span>
                     <span className="font-bold text-[#0F1C2E]">{narrative.platformDetails?.facebook}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-600 rounded-full" style={{ width: `${narrative.platformDetails?.facebook}%` }} />
-                  </div>
                 </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-600 rounded-full" style={{ width: `${narrative.platformDetails?.facebook}%` }} />
+                </div>
+              </div>
               )}
               {(narrative.platformDetails?.news || 0) > 0 && (
                 <div>
@@ -887,14 +887,14 @@ export const NarrativesPage = () => {
 
         {/* Sort Controls */}
         <div className="px-6 py-4 flex items-center justify-end">
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500 font-medium">Sort:</span>
-            <select value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)} className="text-xs font-semibold text-[#0F1C2E] bg-transparent border-none focus:ring-0 cursor-pointer">
-              <option value="strength">Narrative Strength</option>
-              <option value="growth">Fastest Growing</option>
-              <option value="damage">Most Damaging</option>
-              <option value="duration">Longest Running</option>
-            </select>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-500 font-medium">Sort:</span>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)} className="text-xs font-semibold text-[#0F1C2E] bg-transparent border-none focus:ring-0 cursor-pointer">
+                <option value="strength">Narrative Strength</option>
+                <option value="growth">Fastest Growing</option>
+                <option value="damage">Most Damaging</option>
+                <option value="duration">Longest Running</option>
+              </select>
           </div>
         </div>
       </div>

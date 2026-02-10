@@ -41,7 +41,7 @@ export interface SourceChannel {
   label: string;
   value: number;
   count: number;
-  platforms: string[];
+  platforms: string[]; // now explicit platforms like 'twitter', 'reddit', 'facebook', 'news'
 }
 
 export interface RecentPost {
@@ -68,6 +68,15 @@ export interface RiskDistribution {
   distribution: RiskDistributionItem[];
   total: number;
   averageRisk: number;
+}
+
+export interface IngestionPoint {
+  date: string;
+  total: number;
+  twitter: number;
+  reddit: number;
+  facebook: number;
+  news: number;
 }
 
 export class DashboardApi {
@@ -152,6 +161,21 @@ export class DashboardApi {
       };
     } catch (error) {
       console.error('Error fetching risk distribution:', error);
+      throw error;
+    }
+  }
+
+  static async getIngestionVolume(
+    range: '7d' | '30d' | 'quarter' | 'total' = '7d',
+    configurationId?: string
+  ): Promise<IngestionPoint[]> {
+    try {
+      const params: any = { range };
+      if (configurationId) params.configuration_id = configurationId;
+      const response = await apiClient.get<{ data: IngestionPoint[] }>('/dashboard/ingestion-volume', { params });
+      return Array.isArray(response) ? response : response.data || [];
+    } catch (error) {
+      console.error('Error fetching ingestion volume:', error);
       throw error;
     }
   }

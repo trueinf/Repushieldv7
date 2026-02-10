@@ -407,7 +407,7 @@ router.get('/priority-narratives', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/dashboard/source-channels - Platform distribution
+// GET /api/dashboard/source-channels - Platform distribution (by explicit platform)
 router.get('/source-channels', async (req: Request, res: Response) => {
   try {
     const { configuration_id } = req.query;
@@ -438,44 +438,26 @@ router.get('/source-channels', async (req: Request, res: Response) => {
 
     const total = count || posts.length;
 
-    // Count by platform
+    // Count by explicit platform
     const platformCounts: Record<string, number> = {};
     posts.forEach(post => {
-      platformCounts[post.platform] = (platformCounts[post.platform] || 0) + 1;
+      const platform = (post as any).platform || 'unknown';
+      platformCounts[platform] = (platformCounts[platform] || 0) + 1;
     });
 
-    // Map platforms to channels
-    const socialMediaCount = (platformCounts.twitter || 0) + (platformCounts.facebook || 0) + (platformCounts.reddit || 0);
-    const newsCount = platformCounts.news || 0;
-    const forumsCount = platformCounts.reddit || 0; // Reddit can be both social and forum
-    const internalCommsCount = 0; // Placeholder - can be added later
+    const platforms = ['twitter', 'reddit', 'facebook', 'news'];
 
-    const channels = [
-      {
-        label: 'Social Media',
-        value: Math.round((socialMediaCount / total) * 100),
-        count: socialMediaCount,
-        platforms: ['twitter', 'facebook', 'reddit'],
-      },
-      {
-        label: 'News Outlets',
-        value: Math.round((newsCount / total) * 100),
-        count: newsCount,
-        platforms: ['news'],
-      },
-      {
-        label: 'Forums & Blogs',
-        value: Math.round((forumsCount / total) * 100),
-        count: forumsCount,
-        platforms: ['reddit'],
-      },
-      {
-        label: 'Internal Comms',
-        value: Math.round((internalCommsCount / total) * 100),
-        count: internalCommsCount,
-        platforms: [],
-      },
-    ].filter(channel => channel.count > 0); // Remove zero channels
+    const channels = platforms
+      .map(label => {
+        const countForPlatform = platformCounts[label] || 0;
+        return {
+          label,
+          value: total > 0 ? Math.round((countForPlatform / total) * 100) : 0,
+          count: countForPlatform,
+          platforms: [label],
+        };
+      })
+      .filter(channel => channel.count > 0);
 
     res.json({
       success: true,
@@ -672,6 +654,92 @@ router.get('/risk-distribution', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch risk distribution',
+      message: error.message,
+    });
+  }
+});
+
+// GET /api/dashboard/ingestion-volume - New mentions over time
+router.get('/ingestion-volume', async (req: Request, res: Response) => {
+  try {
+    const { range = '7d', configuration_id } = req.query;
+
+    const now = new Date();
+    let days: number;
+    switch (range) {
+      case '30d':
+        days = 30;
+        break;
+      case 'quarter':
+        days = 90;
+        break;
+      case '7d':
+      default:
+        days = 7;
+    }
+
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+    let query = supabase
+      .from('posts')
+      .select('platform, created_at, fetched_at')
+      .gte('created_at', startDate.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (configuration_id) {
+      query = query.eq('configuration_id', configuration_id as string);
+    }
+
+    const { data: posts, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    if (!posts || posts.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    // Group by day and count posts + per-platform volume
+    const buckets: Record<string, {
+      date: string;
+      total: number;
+      twitter: number;
+      reddit: number;
+      facebook: number;
+      news: number;
+    }> = {};
+
+    posts.forEach((post: any) => {
+      const ts = post.fetched_at || post.created_at;
+      const d = new Date(ts);
+      const key = d.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      if (!buckets[key]) {
+        buckets[key] = { date: key, total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
+      }
+
+      buckets[key].total += 1;
+      if (post.platform === 'twitter') buckets[key].twitter += 1;
+      if (post.platform === 'reddit') buckets[key].reddit += 1;
+      if (post.platform === 'facebook') buckets[key].facebook += 1;
+      if (post.platform === 'news') buckets[key].news += 1;
+    });
+
+    const result = Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error('[Dashboard API] Error fetching ingestion volume:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch ingestion volume',
       message: error.message,
     });
   }

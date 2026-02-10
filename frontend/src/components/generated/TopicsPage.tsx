@@ -479,9 +479,9 @@ const TopicCard = ({
           }}
           className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white rounded transition-colors"
         >
-          <Eye size={12} />
-          <span>View Feed</span>
-        </button>
+            <Eye size={12} />
+            <span>View Feed</span>
+          </button>
         <button className="px-3 py-1.5 text-xs font-semibold text-white bg-[#1F9D8A] rounded-lg hover:bg-[#188976] transition-colors">
           Promote
         </button>
@@ -679,10 +679,10 @@ const TopicDetailPanel = ({
                       <span>Twitter/X</span>
                     </span>
                     <span className="font-bold text-[#0F1C2E]">{topic.platformDetails?.twitter}%</span>
-                  </div>
+                </div>
                   <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full bg-black rounded-full" style={{ width: `${topic.platformDetails?.twitter}%` }} />
-                  </div>
+              </div>
                 </div>
               )}
               {(topic.platformDetails?.reddit || 0) > 0 && (
@@ -693,11 +693,11 @@ const TopicDetailPanel = ({
                       <span>Reddit</span>
                     </span>
                     <span className="font-bold text-[#0F1C2E]">{topic.platformDetails?.reddit}%</span>
-                  </div>
+              </div>
                   <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full bg-orange-500 rounded-full" style={{ width: `${topic.platformDetails?.reddit}%` }} />
-                  </div>
                 </div>
+              </div>
               )}
               {(topic.platformDetails?.facebook || 0) > 0 && (
                 <div>
