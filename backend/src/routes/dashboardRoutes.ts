@@ -308,33 +308,36 @@ router.get('/sentiment-trends', async (req: Request, res: Response) => {
         });
       }
     } else if (range === 'quarter') {
-      // Week-wise for quarter (bucket by week starting Monday), labeled by week start date
+      // Quarter-wise for quarter (divide 90 days into Q1, Q2, Q3, Q4)
       const start = startDate ? new Date(startDate) : addUTCDays(todayUTC, -89);
       start.setUTCHours(0, 0, 0, 0);
-      let cursor = startOfUTCWeekMonday(start);
-
-      while (cursor <= todayUTC) {
-        let weekCounts = { positive: 0, neutral: 0, negative: 0 };
-        for (let i = 0; i < 7; i++) {
-          const d = addUTCDays(cursor, i);
-          if (d > todayUTC) break;
+      
+      // Divide 90 days into 4 quarters (~22-23 days each)
+      const quarterDays = 22.5; // Average days per quarter
+      const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+      
+      for (let q = 0; q < 4; q++) {
+        const quarterStart = addUTCDays(start, Math.round(q * quarterDays));
+        const quarterEnd = addUTCDays(start, Math.round((q + 1) * quarterDays) - 1);
+        const quarterEndDate = quarterEnd > todayUTC ? todayUTC : quarterEnd;
+        
+        let quarterCounts = { positive: 0, neutral: 0, negative: 0 };
+        
+        for (let d = new Date(quarterStart); d <= quarterEndDate; d = addUTCDays(d, 1)) {
           const key = isoDate(d);
           const c = byDay[key];
           if (c) {
-            weekCounts.positive += c.positive;
-            weekCounts.neutral += c.neutral;
-            weekCounts.negative += c.negative;
+            quarterCounts.positive += c.positive;
+            quarterCounts.neutral += c.neutral;
+            quarterCounts.negative += c.negative;
           }
         }
-
-        const weekKey = isoDate(cursor);
+        
         result.push({
-          name: `${monthNames[cursor.getUTCMonth()]} ${cursor.getUTCDate()}`,
-          date: weekKey,
-          ...weekCounts,
+          name: quarters[q],
+          date: isoDate(quarterStart),
+          ...quarterCounts,
         });
-
-        cursor = addUTCDays(cursor, 7);
       }
     } else {
       // Total = month-wise buckets (label "Feb 2026")
@@ -812,39 +815,89 @@ router.get('/ingestion-volume', async (req: Request, res: Response) => {
       throw error;
     }
 
-    // Build daily buckets for the full range (fill missing days with zeros)
     const isoDate = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
     const start = new Date(startDate);
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(now);
     end.setUTCHours(0, 0, 0, 0);
 
-    const buckets: Record<
-      string,
-      { date: string; total: number; twitter: number; reddit: number; facebook: number; news: number }
-    > = {};
+    let result: Array<{ date: string; total: number; twitter: number; reddit: number; facebook: number; news: number }> = [];
 
-    // Initialize buckets
-    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
-      const key = isoDate(d);
-      buckets[key] = { date: key, total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
-    }
+    if (range === 'quarter') {
+      // Quarter-wise for quarter (divide 90 days into Q1, Q2, Q3, Q4)
+      const quarterDays = 22.5; // Average days per quarter
+      const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+      
+      // Group posts by day first
+      const byDay: Record<string, { total: number; twitter: number; reddit: number; facebook: number; news: number }> = {};
+      
+      (posts || []).forEach((post: any) => {
+        const ts = post.fetched_at || post.created_at;
+        const key = isoDate(new Date(ts));
+        if (!byDay[key]) {
+          byDay[key] = { total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
+        }
+        
+        byDay[key].total += 1;
+        if (post.platform === 'twitter') byDay[key].twitter += 1;
+        if (post.platform === 'reddit') byDay[key].reddit += 1;
+        if (post.platform === 'facebook') byDay[key].facebook += 1;
+        if (post.platform === 'news') byDay[key].news += 1;
+      });
+      
+      // Aggregate by quarters
+      for (let q = 0; q < 4; q++) {
+        const quarterStart = new Date(start);
+        quarterStart.setUTCDate(quarterStart.getUTCDate() + Math.round(q * quarterDays));
+        const quarterEnd = new Date(start);
+        quarterEnd.setUTCDate(quarterEnd.getUTCDate() + Math.round((q + 1) * quarterDays) - 1);
+        const quarterEndDate = quarterEnd > end ? end : quarterEnd;
+        
+        const quarterData = { date: quarters[q], total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
+        
+        for (let d = new Date(quarterStart); d <= quarterEndDate; d.setUTCDate(d.getUTCDate() + 1)) {
+          const key = isoDate(d);
+          const dayData = byDay[key];
+          if (dayData) {
+            quarterData.total += dayData.total;
+            quarterData.twitter += dayData.twitter;
+            quarterData.reddit += dayData.reddit;
+            quarterData.facebook += dayData.facebook;
+            quarterData.news += dayData.news;
+          }
+        }
+        
+        result.push(quarterData);
+      }
+    } else {
+      // Daily buckets for 7d and 30d
+      const buckets: Record<
+        string,
+        { date: string; total: number; twitter: number; reddit: number; facebook: number; news: number }
+      > = {};
 
-    (posts || []).forEach((post: any) => {
-      const ts = post.fetched_at || post.created_at;
-      const key = isoDate(new Date(ts));
-      if (!buckets[key]) {
+      // Initialize buckets
+      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+        const key = isoDate(d);
         buckets[key] = { date: key, total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
       }
 
-      buckets[key].total += 1;
-      if (post.platform === 'twitter') buckets[key].twitter += 1;
-      if (post.platform === 'reddit') buckets[key].reddit += 1;
-      if (post.platform === 'facebook') buckets[key].facebook += 1;
-      if (post.platform === 'news') buckets[key].news += 1;
-    });
+      (posts || []).forEach((post: any) => {
+        const ts = post.fetched_at || post.created_at;
+        const key = isoDate(new Date(ts));
+        if (!buckets[key]) {
+          buckets[key] = { date: key, total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
+        }
 
-    const result = Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+        buckets[key].total += 1;
+        if (post.platform === 'twitter') buckets[key].twitter += 1;
+        if (post.platform === 'reddit') buckets[key].reddit += 1;
+        if (post.platform === 'facebook') buckets[key].facebook += 1;
+        if (post.platform === 'news') buckets[key].news += 1;
+      });
+
+      result = Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+    }
 
     res.json({
       success: true,
