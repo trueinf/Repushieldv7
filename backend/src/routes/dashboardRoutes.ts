@@ -205,7 +205,7 @@ router.get('/sentiment-trends', async (req: Request, res: Response) => {
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         break;
       case 'total':
-        startDate = null; // No date filter - show all
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // Last 12 months (1 year)
         break;
       default:
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -237,40 +237,138 @@ router.get('/sentiment-trends', async (req: Request, res: Response) => {
       });
     }
 
-    // Group by date and count sentiments
-    const groupedByDate: Record<string, { positive: number; neutral: number; negative: number }> = {};
+    // --- Helpers (UTC-based to keep labels + bucketing stable) ---
+    const isoDate = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const parseISODate = (s: string) => new Date(`${s}T00:00:00Z`);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    posts.forEach(post => {
-      const date = new Date(post.created_at).toISOString().split('T')[0];
-      if (!groupedByDate[date]) {
-        groupedByDate[date] = { positive: 0, neutral: 0, negative: 0 };
-      }
-      
+    const addUTCDays = (d: Date, days: number) => {
+      const dt = new Date(d);
+      dt.setUTCDate(dt.getUTCDate() + days);
+      return dt;
+    };
+    const startOfUTCWeekMonday = (d: Date) => {
+      const dt = new Date(d);
+      dt.setUTCHours(0, 0, 0, 0);
+      const day = dt.getUTCDay(); // 0..6 (Sun..Sat)
+      const diff = day === 0 ? -6 : 1 - day; // Monday-based week
+      dt.setUTCDate(dt.getUTCDate() + diff);
+      return dt;
+    };
+    const startOfUTCMonth = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+    const addUTCMonths = (d: Date, months: number) => {
+      const dt = new Date(d);
+      dt.setUTCHours(0, 0, 0, 0);
+      dt.setUTCDate(1);
+      dt.setUTCMonth(dt.getUTCMonth() + months);
+      return dt;
+    };
+
+    // Group raw posts by day (UTC)
+    const byDay: Record<string, { positive: number; neutral: number; negative: number }> = {};
+    (posts as any[]).forEach((post) => {
+      const key = isoDate(new Date(post.created_at));
+      if (!byDay[key]) byDay[key] = { positive: 0, neutral: 0, negative: 0 };
+
       const sentiment = post.sentiment || 'neutral';
-      if (sentiment === 'positive') {
-        groupedByDate[date].positive++;
-      } else if (sentiment === 'negative') {
-        groupedByDate[date].negative++;
-      } else {
-        groupedByDate[date].neutral++;
-      }
+      if (sentiment === 'positive') byDay[key].positive++;
+      else if (sentiment === 'negative') byDay[key].negative++;
+      else byDay[key].neutral++;
     });
 
-    // Convert to array format with day names
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const result = Object.entries(groupedByDate)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([date, counts]) => {
-        const dateObj = new Date(date);
-        const dayName = dayNames[dateObj.getDay()];
-        return {
-          name: dayName,
-          date: date,
-          positive: counts.positive,
-          neutral: counts.neutral,
-          negative: counts.negative,
-        };
-      });
+    type TrendPoint = { name: string; date: string; positive: number; neutral: number; negative: number };
+    const result: TrendPoint[] = [];
+
+    const todayUTC = new Date(now);
+    todayUTC.setUTCHours(0, 0, 0, 0);
+
+    if (range === '7d') {
+      // Day-wise, last 7 days, labeled by weekday (Mon..Sun) in correct order
+      for (let i = 6; i >= 0; i--) {
+        const d = addUTCDays(todayUTC, -i);
+        const key = isoDate(d);
+        const counts = byDay[key] || { positive: 0, neutral: 0, negative: 0 };
+        result.push({
+          name: dayNames[d.getUTCDay()],
+          date: key,
+          ...counts,
+        });
+      }
+    } else if (range === '30d') {
+      // Day-wise, last 30 days, labeled by date (e.g., "Feb 11")
+      for (let i = 29; i >= 0; i--) {
+        const d = addUTCDays(todayUTC, -i);
+        const key = isoDate(d);
+        const counts = byDay[key] || { positive: 0, neutral: 0, negative: 0 };
+        result.push({
+          name: `${monthNames[d.getUTCMonth()]} ${d.getUTCDate()}`,
+          date: key,
+          ...counts,
+        });
+      }
+    } else if (range === 'quarter') {
+      // Week-wise for quarter (bucket by week starting Monday), labeled by week start date
+      const start = startDate ? new Date(startDate) : addUTCDays(todayUTC, -89);
+      start.setUTCHours(0, 0, 0, 0);
+      let cursor = startOfUTCWeekMonday(start);
+
+      while (cursor <= todayUTC) {
+        let weekCounts = { positive: 0, neutral: 0, negative: 0 };
+        for (let i = 0; i < 7; i++) {
+          const d = addUTCDays(cursor, i);
+          if (d > todayUTC) break;
+          const key = isoDate(d);
+          const c = byDay[key];
+          if (c) {
+            weekCounts.positive += c.positive;
+            weekCounts.neutral += c.neutral;
+            weekCounts.negative += c.negative;
+          }
+        }
+
+        const weekKey = isoDate(cursor);
+        result.push({
+          name: `${monthNames[cursor.getUTCMonth()]} ${cursor.getUTCDate()}`,
+          date: weekKey,
+          ...weekCounts,
+        });
+
+        cursor = addUTCDays(cursor, 7);
+      }
+    } else {
+      // Total = month-wise buckets (label "Feb 2026")
+      const dayKeys = Object.keys(byDay).sort();
+      if (dayKeys.length > 0) {
+        const first = startOfUTCMonth(parseISODate(dayKeys[0]));
+        const last = startOfUTCMonth(parseISODate(dayKeys[dayKeys.length - 1]));
+        let cursor = first;
+
+        while (cursor <= last) {
+          const next = addUTCMonths(cursor, 1);
+          let monthCounts = { positive: 0, neutral: 0, negative: 0 };
+
+          for (let d = new Date(cursor); d < next; d = addUTCDays(d, 1)) {
+            const key = isoDate(d);
+            const c = byDay[key];
+            if (c) {
+              monthCounts.positive += c.positive;
+              monthCounts.neutral += c.neutral;
+              monthCounts.negative += c.negative;
+            }
+          }
+
+          const monthKey = isoDate(cursor); // YYYY-MM-01
+          result.push({
+            name: `${monthNames[cursor.getUTCMonth()]} ${cursor.getUTCFullYear()}`,
+            date: monthKey,
+            ...monthCounts,
+          });
+
+          cursor = next;
+        }
+      }
+    }
 
     res.json({
       success: true,
@@ -407,7 +505,7 @@ router.get('/priority-narratives', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/dashboard/source-channels - Platform distribution (by explicit platform)
+// GET /api/dashboard/source-channels - Platform distribution
 router.get('/source-channels', async (req: Request, res: Response) => {
   try {
     const { configuration_id } = req.query;
@@ -438,26 +536,44 @@ router.get('/source-channels', async (req: Request, res: Response) => {
 
     const total = count || posts.length;
 
-    // Count by explicit platform
+    // Count by platform
     const platformCounts: Record<string, number> = {};
     posts.forEach(post => {
-      const platform = (post as any).platform || 'unknown';
-      platformCounts[platform] = (platformCounts[platform] || 0) + 1;
+      platformCounts[post.platform] = (platformCounts[post.platform] || 0) + 1;
     });
 
-    const platforms = ['twitter', 'reddit', 'facebook', 'news'];
+    // Map platforms to channels
+    const socialMediaCount = (platformCounts.twitter || 0) + (platformCounts.facebook || 0) + (platformCounts.reddit || 0);
+    const newsCount = platformCounts.news || 0;
+    const forumsCount = platformCounts.reddit || 0; // Reddit can be both social and forum
+    const internalCommsCount = 0; // Placeholder - can be added later
 
-    const channels = platforms
-      .map(label => {
-        const countForPlatform = platformCounts[label] || 0;
-        return {
-          label,
-          value: total > 0 ? Math.round((countForPlatform / total) * 100) : 0,
-          count: countForPlatform,
-          platforms: [label],
-        };
-      })
-      .filter(channel => channel.count > 0);
+    const channels = [
+      {
+        label: 'Social Media',
+        value: Math.round((socialMediaCount / total) * 100),
+        count: socialMediaCount,
+        platforms: ['twitter', 'facebook', 'reddit'],
+      },
+      {
+        label: 'News Outlets',
+        value: Math.round((newsCount / total) * 100),
+        count: newsCount,
+        platforms: ['news'],
+      },
+      {
+        label: 'Forums & Blogs',
+        value: Math.round((forumsCount / total) * 100),
+        count: forumsCount,
+        platforms: ['reddit'],
+      },
+      {
+        label: 'Internal Comms',
+        value: Math.round((internalCommsCount / total) * 100),
+        count: internalCommsCount,
+        platforms: [],
+      },
+    ].filter(channel => channel.count > 0); // Remove zero channels
 
     res.json({
       success: true,
@@ -696,28 +812,27 @@ router.get('/ingestion-volume', async (req: Request, res: Response) => {
       throw error;
     }
 
-    if (!posts || posts.length === 0) {
-      return res.json({
-        success: true,
-        data: [],
-      });
+    // Build daily buckets for the full range (fill missing days with zeros)
+    const isoDate = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const start = new Date(startDate);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setUTCHours(0, 0, 0, 0);
+
+    const buckets: Record<
+      string,
+      { date: string; total: number; twitter: number; reddit: number; facebook: number; news: number }
+    > = {};
+
+    // Initialize buckets
+    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      const key = isoDate(d);
+      buckets[key] = { date: key, total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
     }
 
-    // Group by day and count posts + per-platform volume
-    const buckets: Record<string, {
-      date: string;
-      total: number;
-      twitter: number;
-      reddit: number;
-      facebook: number;
-      news: number;
-    }> = {};
-
-    posts.forEach((post: any) => {
+    (posts || []).forEach((post: any) => {
       const ts = post.fetched_at || post.created_at;
-      const d = new Date(ts);
-      const key = d.toISOString().split('T')[0]; // YYYY-MM-DD
-
+      const key = isoDate(new Date(ts));
       if (!buckets[key]) {
         buckets[key] = { date: key, total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
       }

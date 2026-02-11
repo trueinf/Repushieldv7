@@ -9,6 +9,7 @@ import { NarrativesPage } from './NarrativesPage';
 import { ResearchPage } from './ResearchPage';
 import { ComposePage } from './ComposePage';
 import { ConfigurationPage } from './ConfigurationPage';
+import { UttarakhandHeatMap } from './UttarakhandHeatMap';
 import { DashboardApi, type DashboardStats, type SentimentTrend, type PriorityNarrative, type SourceChannel, type RecentPost, type RiskDistribution, type IngestionPoint } from '../../services/dashboardApi';
 import { ConfigurationApi } from '../../services/configurationApi';
 
@@ -300,23 +301,24 @@ export const RepuShield = () => {
     try {
       // Dashboard shows OVERALL data (all configurations), not filtered by configuration
       // Stats and trends are filtered by the selected time range
-      const [stats, trends, narratives, channels, posts, riskDist, ingestion] = await Promise.all([
+      const [stats, trends, narratives, channels, posts, riskDist, ingestion] = await Promise.allSettled([
         DashboardApi.getStats(sentimentRange, undefined), // Filter by selected time range
         DashboardApi.getSentimentTrends(sentimentRange, undefined), // Sentiment trends filtered by range
         DashboardApi.getPriorityNarratives(4, undefined), // No configuration filter
         DashboardApi.getSourceChannels(undefined), // No configuration filter
         DashboardApi.getRecentPosts(5, undefined), // Show only latest 5 posts
         DashboardApi.getRiskDistribution(undefined), // No configuration filter
-        DashboardApi.getIngestionVolume(ingestionRange, undefined),
+        DashboardApi.getIngestionVolume(ingestionRange, undefined).catch(() => []), // Gracefully handle errors
       ]);
 
-      setDashboardStats(stats);
-      setSentimentTrends(trends);
-      setPriorityNarratives(narratives);
-      setSourceChannels(channels.channels);
-      setRecentPosts(posts);
-      setRiskDistribution(riskDist);
-      setIngestionData(ingestion);
+      // Extract values from Promise.allSettled results
+      setDashboardStats(stats.status === 'fulfilled' ? stats.value : null);
+      setSentimentTrends(trends.status === 'fulfilled' ? trends.value : []);
+      setPriorityNarratives(narratives.status === 'fulfilled' ? narratives.value : []);
+      setSourceChannels(channels.status === 'fulfilled' ? channels.value.channels : []);
+      setRecentPosts(posts.status === 'fulfilled' ? posts.value : []);
+      setRiskDistribution(riskDist.status === 'fulfilled' ? riskDist.value : { distribution: [], total: 0, averageRisk: 0 });
+      setIngestionData(ingestion.status === 'fulfilled' ? ingestion.value : []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -599,10 +601,20 @@ export const RepuShield = () => {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{
-                      fill: '#6B7280',
-                      fontSize: 12
-                    }} dy={10} />
+                      <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{
+                          fill: '#6B7280',
+                          fontSize: sentimentRange === 'total' ? 10 : 12
+                        }} 
+                        dy={10}
+                        interval={sentimentRange === '7d' ? 0 : sentimentRange === '30d' ? 1 : sentimentRange === 'quarter' ? 0 : 0}
+                        angle={sentimentRange === 'total' ? -35 : 0}
+                        textAnchor={sentimentRange === 'total' ? 'end' : 'middle'}
+                        minTickGap={sentimentRange === 'total' ? 0 : 5}
+                      />
                       <YAxis axisLine={false} tickLine={false} tick={{
                       fill: '#6B7280',
                       fontSize: 12
@@ -863,6 +875,11 @@ export const RepuShield = () => {
                   )}
                 </div>
               </div>
+            </section>
+
+            {/* Uttarakhand Heat Map */}
+            <section className="mt-6">
+              <UttarakhandHeatMap />
             </section>
 
             {/* Bottom Grid */}
