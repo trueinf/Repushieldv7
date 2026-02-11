@@ -452,15 +452,16 @@ export const UttarakhandHeatMap: React.FC<UttarakhandHeatMapProps> = ({ viewMode
       </div>
 
       <div className="relative" ref={mapContainerRef}>
-        <div className="w-full h-[500px] border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-          <ComposableMap
-            projection="geoMercator"
-            projectionConfig={{
-              center: [79.29, 30.09],
-              scale: 15000,
-            }}
-            style={{ width: '100%', height: '100%' }}
-          >
+        <div className="w-full h-[400px] border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-4">
+          <div className="w-full h-full">
+            <ComposableMap
+              projection="geoMercator"
+              projectionConfig={{
+                center: [79.29, 30.09],
+                scale: 11500,
+              }}
+              style={{ width: '100%', height: '100%' }}
+            >
             {/* State Outline - exact shape with light fill */}
             {stateOutline && (
               <Geographies geography={stateOutline}>
@@ -594,7 +595,8 @@ export const UttarakhandHeatMap: React.FC<UttarakhandHeatMapProps> = ({ viewMode
               }
               </Geographies>
             )}
-          </ComposableMap>
+            </ComposableMap>
+          </div>
         </div>
 
         {/* Tooltip */}

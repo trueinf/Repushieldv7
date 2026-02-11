@@ -994,8 +994,11 @@ export const RepuShield = () => {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                         <XAxis 
                           dataKey="date" 
-                          tick={{ fill: '#6B7280', fontSize: ingestionRange === 'quarter' ? 12 : 11 }} 
-                          interval={ingestionRange === 'quarter' ? 0 : 'preserveStartEnd'}
+                          tick={{ fill: '#6B7280', fontSize: ingestionRange === 'quarter' ? 12 : ingestionRange === '30d' ? 10 : 11 }} 
+                          interval={ingestionRange === 'quarter' ? 0 : ingestionRange === '7d' ? 0 : 1}
+                          angle={ingestionRange === 'quarter' ? -35 : 0}
+                          textAnchor={ingestionRange === 'quarter' ? 'end' : 'middle'}
+                          dy={ingestionRange === 'quarter' ? 10 : 10}
                         />
                         <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} />
                         <Tooltip
