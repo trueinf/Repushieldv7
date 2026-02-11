@@ -815,7 +815,21 @@ router.get('/ingestion-volume', async (req: Request, res: Response) => {
       throw error;
     }
 
+    // --- Helpers (UTC-based to keep labels + bucketing stable) ---
     const isoDate = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const addUTCDays = (d: Date, days: number) => {
+      const dt = new Date(d);
+      dt.setUTCDate(dt.getUTCDate() + days);
+      return dt;
+    };
+    // Format date as "MMM DD" (e.g., "Jan 13")
+    const formatDateLabel = (d: Date) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    };
+    
+    const todayUTC = new Date(now);
+    todayUTC.setUTCHours(0, 0, 0, 0);
     const start = new Date(startDate);
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(now);
@@ -828,11 +842,12 @@ router.get('/ingestion-volume', async (req: Request, res: Response) => {
       const quarterDays = 22.5; // Average days per quarter
       const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
       
-      // Group posts by day first
+      // Group posts by day first using created_at (consistent with sentiment-trends)
       const byDay: Record<string, { total: number; twitter: number; reddit: number; facebook: number; news: number }> = {};
       
       (posts || []).forEach((post: any) => {
-        const ts = post.fetched_at || post.created_at;
+        // Use created_at only (consistent with sentiment-trends endpoint)
+        const ts = post.created_at;
         const key = isoDate(new Date(ts));
         if (!byDay[key]) {
           byDay[key] = { total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
@@ -845,17 +860,15 @@ router.get('/ingestion-volume', async (req: Request, res: Response) => {
         if (post.platform === 'news') byDay[key].news += 1;
       });
       
-      // Aggregate by quarters
+      // Aggregate by quarters using addUTCDays (consistent with sentiment-trends)
       for (let q = 0; q < 4; q++) {
-        const quarterStart = new Date(start);
-        quarterStart.setUTCDate(quarterStart.getUTCDate() + Math.round(q * quarterDays));
-        const quarterEnd = new Date(start);
-        quarterEnd.setUTCDate(quarterEnd.getUTCDate() + Math.round((q + 1) * quarterDays) - 1);
-        const quarterEndDate = quarterEnd > end ? end : quarterEnd;
+        const quarterStart = addUTCDays(start, Math.round(q * quarterDays));
+        const quarterEnd = addUTCDays(start, Math.round((q + 1) * quarterDays) - 1);
+        const quarterEndDate = quarterEnd > todayUTC ? todayUTC : quarterEnd;
         
         const quarterData = { date: quarters[q], total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
         
-        for (let d = new Date(quarterStart); d <= quarterEndDate; d.setUTCDate(d.getUTCDate() + 1)) {
+        for (let d = new Date(quarterStart); d <= quarterEndDate; d = addUTCDays(d, 1)) {
           const key = isoDate(d);
           const dayData = byDay[key];
           if (dayData) {
@@ -876,17 +889,19 @@ router.get('/ingestion-volume', async (req: Request, res: Response) => {
         { date: string; total: number; twitter: number; reddit: number; facebook: number; news: number }
       > = {};
 
-      // Initialize buckets
-      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      // Initialize buckets using addUTCDays for consistency
+      for (let d = new Date(start); d <= end; d = addUTCDays(d, 1)) {
         const key = isoDate(d);
-        buckets[key] = { date: key, total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
+        buckets[key] = { date: formatDateLabel(d), total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
       }
 
       (posts || []).forEach((post: any) => {
-        const ts = post.fetched_at || post.created_at;
+        // Use created_at only (consistent with sentiment-trends endpoint)
+        const ts = post.created_at;
         const key = isoDate(new Date(ts));
         if (!buckets[key]) {
-          buckets[key] = { date: key, total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
+          const postDate = new Date(ts);
+          buckets[key] = { date: formatDateLabel(postDate), total: 0, twitter: 0, reddit: 0, facebook: 0, news: 0 };
         }
 
         buckets[key].total += 1;
@@ -896,7 +911,11 @@ router.get('/ingestion-volume', async (req: Request, res: Response) => {
         if (post.platform === 'news') buckets[key].news += 1;
       });
 
-      result = Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+      // Convert to array and sort by date key (ISO format)
+      result = Object.entries(buckets)
+        .map(([key, value]) => ({ ...value, _sortKey: key }))
+        .sort((a, b) => a._sortKey.localeCompare(b._sortKey))
+        .map(({ _sortKey, ...rest }) => rest);
     }
 
     res.json({
