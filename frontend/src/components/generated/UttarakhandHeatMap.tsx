@@ -59,6 +59,92 @@ const getDistrictSentiment = (district: string, total: number) => {
   };
 };
 
+// Generate device distribution data
+const getDistrictDeviceData = (district: string, total: number) => {
+  const hash = district.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const isUrban = ['Dehradun', 'Haridwar', 'Nainital', 'Udham Singh Nagar'].includes(district);
+  
+  let mobilePct: number;
+  let desktopPct: number;
+  let tabletPct: number;
+  
+  if (isUrban) {
+    // Urban: Higher desktop usage (40-50%), mobile (45-55%), tablet (5-10%)
+    desktopPct = 0.40 + ((hash % 11) / 100); // 0.40 to 0.50
+    mobilePct = 0.45 + (((hash * 2) % 11) / 100); // 0.45 to 0.55
+    tabletPct = 0.05 + (((hash * 3) % 6) / 100); // 0.05 to 0.10
+  } else {
+    // Rural: Higher mobile usage (60-75%), desktop (20-35%), tablet (5-10%)
+    mobilePct = 0.60 + (((hash * 2) % 16) / 100); // 0.60 to 0.75
+    desktopPct = 0.20 + (((hash * 3) % 16) / 100); // 0.20 to 0.35
+    tabletPct = 0.05 + (((hash * 4) % 6) / 100); // 0.05 to 0.10
+  }
+  
+  // Normalize to ensure they sum to 1
+  const sum = mobilePct + desktopPct + tabletPct;
+  mobilePct = mobilePct / sum;
+  desktopPct = desktopPct / sum;
+  tabletPct = tabletPct / sum;
+  
+  return {
+    mobile: Math.round(total * mobilePct),
+    desktop: Math.round(total * desktopPct),
+    tablet: Math.round(total * tabletPct),
+  };
+};
+
+// Generate age distribution data
+const getDistrictAgeData = (district: string, total: number) => {
+  const hash = district.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const isUrban = ['Dehradun', 'Haridwar', 'Nainital', 'Udham Singh Nagar'].includes(district);
+  
+  let ageGroups: Record<string, number>;
+  let averageAge: number;
+  
+  if (isUrban) {
+    // Urban: More diverse age groups, slightly older average (35-42 years)
+    const base18_24 = 0.15 + ((hash % 8) / 100); // 0.15 to 0.22
+    const base25_34 = 0.25 + (((hash * 2) % 10) / 100); // 0.25 to 0.34
+    const base35_44 = 0.22 + (((hash * 3) % 8) / 100); // 0.22 to 0.29
+    const base45_54 = 0.18 + (((hash * 4) % 7) / 100); // 0.18 to 0.24
+    const base55 = 0.12 + (((hash * 5) % 6) / 100); // 0.12 to 0.17
+    
+    const sum = base18_24 + base25_34 + base35_44 + base45_54 + base55;
+    ageGroups = {
+      '18-24': Math.round(total * (base18_24 / sum)),
+      '25-34': Math.round(total * (base25_34 / sum)),
+      '35-44': Math.round(total * (base35_44 / sum)),
+      '45-54': Math.round(total * (base45_54 / sum)),
+      '55+': Math.round(total * (base55 / sum)),
+    };
+    
+    averageAge = 35 + ((hash % 8)); // 35 to 42
+  } else {
+    // Rural: Younger average age (28-35 years), more concentrated in 25-44 range
+    const base18_24 = 0.20 + (((hash * 2) % 10) / 100); // 0.20 to 0.29
+    const base25_34 = 0.35 + (((hash * 3) % 10) / 100); // 0.35 to 0.44
+    const base35_44 = 0.25 + (((hash * 4) % 8) / 100); // 0.25 to 0.32
+    const base45_54 = 0.12 + (((hash * 5) % 6) / 100); // 0.12 to 0.17
+    const base55 = 0.05 + (((hash * 6) % 5) / 100); // 0.05 to 0.09
+    
+    const sum = base18_24 + base25_34 + base35_44 + base45_54 + base55;
+    ageGroups = {
+      '18-24': Math.round(total * (base18_24 / sum)),
+      '25-34': Math.round(total * (base25_34 / sum)),
+      '35-44': Math.round(total * (base35_44 / sum)),
+      '45-54': Math.round(total * (base45_54 / sum)),
+      '55+': Math.round(total * (base55 / sum)),
+    };
+    
+    averageAge = 28 + ((hash % 8)); // 28 to 35
+  }
+  
+  return {
+    ageGroups,
+    averageAge,
+  };
+};
+
 // Generate realistic analysis content
 const getDistrictAnalysis = (district: string, sentiment: { total: number; positive: number; negative: number; neutral: number }) => {
   const sentimentDelta = sentiment.positive - sentiment.negative;
@@ -169,12 +255,18 @@ interface DistrictMetrics {
   neutral: number;
 }
 
-export const UttarakhandHeatMap: React.FC = () => {
+interface UttarakhandHeatMapProps {
+  viewMode?: 'principal' | 'team';
+}
+
+export const UttarakhandHeatMap: React.FC<UttarakhandHeatMapProps> = ({ viewMode = 'principal' }) => {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [stateOutline, setStateOutline] = useState<any>(null);
   const [districts, setDistricts] = useState<any>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deviceTooltip, setDeviceTooltip] = useState<{ type: string; x: number; y: number } | null>(null);
+  const [ageTooltip, setAgeTooltip] = useState<{ ageGroup: string; x: number; y: number } | null>(null);
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Load the accurate state outline and districts
@@ -212,14 +304,92 @@ export const UttarakhandHeatMap: React.FC = () => {
 
   // Calculate negative sentiment for all districts to get min/max for color scaling
   const districtNegativeSentiments: Record<string, number> = {};
+  const districtDeviceData: Record<string, { mobile: number; desktop: number; tablet: number }> = {};
+  const districtAgeData: Record<string, { ageGroups: Record<string, number>; averageAge: number }> = {};
+  
   Object.keys(MOCK_MENTION_DATA).forEach(district => {
     const total = MOCK_MENTION_DATA[district];
     const sentiment = getDistrictSentiment(district, total);
     districtNegativeSentiments[district] = sentiment.negative;
+    districtDeviceData[district] = getDistrictDeviceData(district, sentiment.negative); // Use negative count for device data
+    districtAgeData[district] = getDistrictAgeData(district, sentiment.negative); // Use negative count for age data
   });
   
-  const maxNegative = Math.max(...Object.values(districtNegativeSentiments));
-  const minNegative = Math.min(...Object.values(districtNegativeSentiments));
+  // For team view, filter to only high-risk districts (above average negative sentiment)
+  const allNegativeValues = Object.values(districtNegativeSentiments);
+  const averageNegative = allNegativeValues.reduce((a, b) => a + b, 0) / allNegativeValues.length;
+  const highRiskDistricts = viewMode === 'team' 
+    ? Object.keys(districtNegativeSentiments).filter(district => districtNegativeSentiments[district] >= averageNegative)
+    : Object.keys(districtNegativeSentiments);
+  
+  const maxNegative = Math.max(...allNegativeValues);
+  const minNegative = Math.min(...allNegativeValues);
+
+  // Aggregate device and age data for high-risk districts (team view)
+  const aggregatedDeviceData = viewMode === 'team' ? (() => {
+    let totalMobile = 0;
+    let totalDesktop = 0;
+    let totalTablet = 0;
+    
+    highRiskDistricts.forEach(district => {
+      const deviceData = districtDeviceData[district];
+      totalMobile += deviceData.mobile;
+      totalDesktop += deviceData.desktop;
+      totalTablet += deviceData.tablet;
+    });
+    
+    const total = totalMobile + totalDesktop + totalTablet;
+    return {
+      mobile: totalMobile,
+      desktop: totalDesktop,
+      tablet: totalTablet,
+      mobilePct: total > 0 ? Math.round((totalMobile / total) * 100) : 0,
+      desktopPct: total > 0 ? Math.round((totalDesktop / total) * 100) : 0,
+      tabletPct: total > 0 ? Math.round((totalTablet / total) * 100) : 0,
+    };
+  })() : null;
+
+  const aggregatedAgeData = viewMode === 'team' ? (() => {
+    const ageGroups: Record<string, number> = {
+      '18-24': 0,
+      '25-34': 0,
+      '35-44': 0,
+      '45-54': 0,
+      '55+': 0,
+    };
+    let totalAge = 0;
+    let totalCount = 0;
+    
+    highRiskDistricts.forEach(district => {
+      const ageData = districtAgeData[district];
+      Object.keys(ageGroups).forEach(ageGroup => {
+        ageGroups[ageGroup] += ageData.ageGroups[ageGroup];
+      });
+      totalAge += ageData.averageAge * (districtNegativeSentiments[district] || 0);
+      totalCount += districtNegativeSentiments[district] || 0;
+    });
+    
+    const total = Object.values(ageGroups).reduce((a, b) => a + b, 0);
+    const averageAge = totalCount > 0 ? Math.round(totalAge / totalCount) : 0;
+    
+    return {
+      ageGroups: {
+        '18-24': ageGroups['18-24'],
+        '25-34': ageGroups['25-34'],
+        '35-44': ageGroups['35-44'],
+        '45-54': ageGroups['45-54'],
+        '55+': ageGroups['55+'],
+      },
+      ageGroupPcts: {
+        '18-24': total > 0 ? Math.round((ageGroups['18-24'] / total) * 100) : 0,
+        '25-34': total > 0 ? Math.round((ageGroups['25-34'] / total) * 100) : 0,
+        '35-44': total > 0 ? Math.round((ageGroups['35-44'] / total) * 100) : 0,
+        '45-54': total > 0 ? Math.round((ageGroups['45-54'] / total) * 100) : 0,
+        '55+': total > 0 ? Math.round((ageGroups['55+'] / total) * 100) : 0,
+      },
+      averageAge,
+    };
+  })() : null;
 
   const selectedMetrics = selectedDistrict 
     ? getDistrictSentiment(selectedDistrict, MOCK_MENTION_DATA[selectedDistrict] || 0)
@@ -228,11 +398,57 @@ export const UttarakhandHeatMap: React.FC = () => {
     ? getDistrictAnalysis(selectedDistrict, selectedMetrics)
     : null;
 
+  // Get district-wise breakdown for device type
+  const getDistrictWiseDeviceBreakdown = (deviceType: 'mobile' | 'desktop' | 'tablet') => {
+    const breakdown: Array<{ district: string; count: number; pct: number }> = [];
+    let total = 0;
+    
+    highRiskDistricts.forEach(district => {
+      const deviceData = districtDeviceData[district];
+      const count = deviceData[deviceType];
+      total += count;
+      breakdown.push({ district, count, pct: 0 });
+    });
+    
+    breakdown.forEach(item => {
+      item.pct = total > 0 ? Math.round((item.count / total) * 100) : 0;
+    });
+    
+    return breakdown.sort((a, b) => b.count - a.count);
+  };
+
+  // Get district-wise breakdown for age group
+  const getDistrictWiseAgeBreakdown = (ageGroup: string) => {
+    const breakdown: Array<{ district: string; count: number; pct: number }> = [];
+    let total = 0;
+    
+    highRiskDistricts.forEach(district => {
+      const ageData = districtAgeData[district];
+      const count = ageData.ageGroups[ageGroup];
+      total += count;
+      breakdown.push({ district, count, pct: 0 });
+    });
+    
+    breakdown.forEach(item => {
+      item.pct = total > 0 ? Math.round((item.count / total) * 100) : 0;
+    });
+    
+    return breakdown.sort((a, b) => b.count - a.count);
+  };
+
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
       <div className="mb-6">
-        <h3 className="text-lg font-bold mb-1">Uttarakhand Negative Sentiment Heat Map</h3>
-        <p className="text-sm text-gray-500">Negative sentiment distribution across districts.</p>
+        <h3 className="text-lg font-bold mb-1">
+          {viewMode === 'team' 
+            ? 'High-Risk Districts - Negative Sentiment Focus' 
+            : 'Uttarakhand Negative Sentiment Heat Map'}
+        </h3>
+        <p className="text-sm text-gray-500">
+          {viewMode === 'team' 
+            ? 'Districts requiring immediate attention based on negative sentiment levels.'
+            : 'Negative sentiment distribution across districts.'}
+        </p>
       </div>
 
       <div className="relative" ref={mapContainerRef}>
@@ -288,6 +504,37 @@ export const UttarakhandHeatMap: React.FC = () => {
                 {({ geographies }) =>
                   geographies.map((geo) => {
                     const districtName = geo.properties.district || geo.properties.NAME_2 || geo.properties.name;
+                    
+                    // Filter districts for team view
+                    if (viewMode === 'team' && !highRiskDistricts.includes(districtName)) {
+                      // Gray out or hide low-risk districts in team view
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          fill="#E5E7EB"
+                          stroke="#D1D5DB"
+                          strokeWidth={0.5}
+                          style={{
+                            default: {
+                              fill: '#E5E7EB',
+                              stroke: '#D1D5DB',
+                              strokeWidth: 0.5,
+                              outline: 'none',
+                              opacity: 0.3,
+                            },
+                            hover: {
+                              fill: '#E5E7EB',
+                              stroke: '#D1D5DB',
+                              strokeWidth: 0.5,
+                              outline: 'none',
+                              opacity: 0.3,
+                            },
+                          }}
+                        />
+                      );
+                    }
+                    
                     const total = MOCK_MENTION_DATA[districtName] || 0;
                     const sentiment = getDistrictSentiment(districtName, total);
                     const negativeCount = sentiment.negative;
@@ -537,6 +784,7 @@ export const UttarakhandHeatMap: React.FC = () => {
       {/* District List */}
       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
         {Object.entries(MOCK_MENTION_DATA)
+          .filter(([district]) => viewMode === 'principal' || highRiskDistricts.includes(district))
           .map(([district, total]) => {
             const sentiment = getDistrictSentiment(district, total);
             return { district, negative: sentiment.negative };
@@ -545,13 +793,225 @@ export const UttarakhandHeatMap: React.FC = () => {
           .map(({ district, negative }) => (
             <div
               key={district}
-              className="flex items-center justify-between p-2 bg-gray-50 rounded"
+              className={`flex items-center justify-between p-2 rounded ${
+                viewMode === 'team' && highRiskDistricts.includes(district)
+                  ? 'bg-red-50 border border-red-200'
+                  : 'bg-gray-50'
+              }`}
             >
               <span className="text-gray-700 font-medium truncate">{district}</span>
               <span className="text-rose-600 font-bold ml-2">{negative}</span>
             </div>
           ))}
       </div>
+
+      {/* Device & Demographics Analysis - Team View Only */}
+      {viewMode === 'team' && aggregatedDeviceData && aggregatedAgeData && (
+        <div className="mt-6 border-t border-gray-200 pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h4 className="text-base font-bold text-gray-900">Device & Demographics Analysis</h4>
+            <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
+              High-Risk Districts
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Device Distribution */}
+            <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg p-5 border border-gray-200 shadow-sm">
+              <h5 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                Device Distribution
+              </h5>
+              <div className="space-y-3">
+                {/* Mobile */}
+                <div
+                  className="relative cursor-pointer"
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setDeviceTooltip({ type: 'mobile', x: rect.left + rect.width / 2, y: rect.top - 10 });
+                  }}
+                  onMouseLeave={() => setDeviceTooltip(null)}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-700">Mobile</span>
+                    <span className="text-xs font-bold text-gray-900">
+                      {aggregatedDeviceData.mobilePct}% ({aggregatedDeviceData.mobile.toLocaleString()})
+                    </span>
+                  </div>
+                  <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 rounded-full transition-all"
+                      style={{ width: `${aggregatedDeviceData.mobilePct}%` }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Desktop/Laptop */}
+                <div
+                  className="relative cursor-pointer"
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setDeviceTooltip({ type: 'desktop', x: rect.left + rect.width / 2, y: rect.top - 10 });
+                  }}
+                  onMouseLeave={() => setDeviceTooltip(null)}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-700">Desktop/Laptop</span>
+                    <span className="text-xs font-bold text-gray-900">
+                      {aggregatedDeviceData.desktopPct}% ({aggregatedDeviceData.desktop.toLocaleString()})
+                    </span>
+                  </div>
+                  <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gray-600 rounded-full transition-all"
+                      style={{ width: `${aggregatedDeviceData.desktopPct}%` }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Tablet */}
+                <div
+                  className="relative cursor-pointer"
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setDeviceTooltip({ type: 'tablet', x: rect.left + rect.width / 2, y: rect.top - 10 });
+                  }}
+                  onMouseLeave={() => setDeviceTooltip(null)}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-700">Tablet</span>
+                    <span className="text-xs font-bold text-gray-900">
+                      {aggregatedDeviceData.tabletPct}% ({aggregatedDeviceData.tablet.toLocaleString()})
+                    </span>
+                  </div>
+                  <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-orange-500 rounded-full transition-all"
+                      style={{ width: `${aggregatedDeviceData.tabletPct}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Age Distribution */}
+            <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg p-5 border border-gray-200 shadow-sm">
+              <h5 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                Age Distribution
+              </h5>
+              <div className="space-y-2.5">
+                {Object.entries(aggregatedAgeData.ageGroupPcts).map(([ageGroup, pct]) => {
+                  const count = aggregatedAgeData.ageGroups[ageGroup];
+                  const colors: Record<string, string> = {
+                    '18-24': 'bg-blue-400',
+                    '25-34': 'bg-blue-500',
+                    '35-44': 'bg-indigo-500',
+                    '45-54': 'bg-purple-500',
+                    '55+': 'bg-purple-600',
+                  };
+                  
+                  return (
+                    <div
+                      key={ageGroup}
+                      className="relative cursor-pointer"
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setAgeTooltip({ ageGroup, x: rect.left + rect.width / 2, y: rect.top - 10 });
+                      }}
+                      onMouseLeave={() => setAgeTooltip(null)}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-700">{ageGroup} years</span>
+                        <span className="text-xs font-bold text-gray-900">
+                          {pct}% ({count.toLocaleString()})
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${colors[ageGroup] || 'bg-gray-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-5 p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <p className="text-xs text-gray-600">
+              <span className="font-semibold text-gray-900">Data Source:</span> Aggregated from{' '}
+              <span className="font-semibold text-gray-900">{highRiskDistricts.length}</span> high-risk district
+              {highRiskDistricts.length !== 1 ? 's' : ''} based on negative sentiment posts
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Device Distribution Tooltip */}
+      <AnimatePresence>
+        {deviceTooltip && (() => {
+          const breakdown = getDistrictWiseDeviceBreakdown(deviceTooltip.type as 'mobile' | 'desktop' | 'tablet');
+          const deviceLabel = deviceTooltip.type === 'mobile' ? 'Mobile' : deviceTooltip.type === 'desktop' ? 'Desktop/Laptop' : 'Tablet';
+          
+          return (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -10 }}
+              className="fixed bg-white border border-gray-200 rounded-lg shadow-xl p-4 z-50 pointer-events-none min-w-[280px] max-w-[320px]"
+              style={{
+                left: `${Math.min(deviceTooltip.x - 140, window.innerWidth - 320)}px`,
+                top: `${Math.max(deviceTooltip.y - 150, 10)}px`,
+              }}
+            >
+              <div className="text-sm font-bold text-gray-900 mb-3">{deviceLabel} - District Breakdown</div>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {breakdown.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-700 font-medium truncate flex-1">{item.district}</span>
+                    <span className="text-gray-900 font-bold ml-2">{item.count.toLocaleString()}</span>
+                    <span className="text-gray-500 ml-2">({item.pct}%)</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* Age Distribution Tooltip */}
+      <AnimatePresence>
+        {ageTooltip && (() => {
+          const breakdown = getDistrictWiseAgeBreakdown(ageTooltip.ageGroup);
+          
+          return (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -10 }}
+              className="fixed bg-white border border-gray-200 rounded-lg shadow-xl p-4 z-50 pointer-events-none min-w-[280px] max-w-[320px]"
+              style={{
+                left: `${Math.min(ageTooltip.x - 140, window.innerWidth - 320)}px`,
+                top: `${Math.max(ageTooltip.y - 150, 10)}px`,
+              }}
+            >
+              <div className="text-sm font-bold text-gray-900 mb-3">{ageTooltip.ageGroup} years - District Breakdown</div>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {breakdown.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-700 font-medium truncate flex-1">{item.district}</span>
+                    <span className="text-gray-900 font-bold ml-2">{item.count.toLocaleString()}</span>
+                    <span className="text-gray-500 ml-2">({item.pct}%)</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 };

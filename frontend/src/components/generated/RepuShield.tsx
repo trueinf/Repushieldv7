@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { LayoutDashboard, Rss, Tag, MessageSquare, Settings, Search, PenSquare, ShieldAlert, ChevronRight, TrendingUp, TrendingDown, AlertTriangle, Bell, Menu, X, MoreVertical, ArrowUpRight, Target, BarChart3, Globe } from 'lucide-react';
+import { LayoutDashboard, Rss, Tag, MessageSquare, Settings, Search, PenSquare, ShieldAlert, ChevronRight, TrendingUp, TrendingDown, AlertTriangle, Bell, Menu, X, MoreVertical, ArrowUpRight, Target, BarChart3, Globe, Users, Briefcase } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -12,6 +12,7 @@ import { ConfigurationPage } from './ConfigurationPage';
 import { UttarakhandHeatMap } from './UttarakhandHeatMap';
 import { DashboardApi, type DashboardStats, type SentimentTrend, type PriorityNarrative, type SourceChannel, type RecentPost, type RiskDistribution, type IngestionPoint } from '../../services/dashboardApi';
 import { ConfigurationApi } from '../../services/configurationApi';
+import { PostsApi, type Post } from '../../services/postsApi';
 
 // Types
 type NavItem = {
@@ -246,6 +247,9 @@ export const RepuShield = () => {
   const [activeConfiguration, setActiveConfiguration] = useState<any | null>(null);
   const [ingestionRange, setIngestionRange] = useState<'7d' | '30d' | 'quarter'>('7d');
   const [ingestionData, setIngestionData] = useState<IngestionPoint[]>([]);
+  const [dashboardView, setDashboardView] = useState<'principal' | 'team'>('principal');
+  const [teamQueue, setTeamQueue] = useState<any[]>([]);
+  const [teamQueueLoading, setTeamQueueLoading] = useState(false);
 
   // Load dashboard data
   useEffect(() => {
@@ -270,6 +274,13 @@ export const RepuShield = () => {
   useEffect(() => {
     loadActiveConfiguration();
   }, []);
+
+  // Load team queue data when in team view
+  useEffect(() => {
+    if (activeTab === 'dashboard' && dashboardView === 'team') {
+      loadTeamQueue();
+    }
+  }, [activeTab, dashboardView]);
 
   const loadActiveConfiguration = async () => {
     try {
@@ -343,6 +354,101 @@ export const RepuShield = () => {
       setPriorityNarratives(narratives);
     } catch (error) {
       console.error('Error refreshing priority narratives:', error);
+    }
+  };
+
+  // Load team queue data
+  const loadTeamQueue = async () => {
+    setTeamQueueLoading(true);
+    try {
+      // Fetch all posts (we'll filter client-side)
+      const allPosts = await PostsApi.getAll({
+        configuration_id: configurationId || undefined,
+        limit: 1000,
+        sort: 'created_at',
+        order: 'desc',
+      });
+
+      // Filter posts into different categories
+      const teamQueueItems: any[] = [];
+
+      // High-risk posts (risk_score >= 7, not reviewed)
+      const highRiskPosts = allPosts
+        .filter(post => (post.risk_score || 0) >= 7)
+        .slice(0, 20)
+        .map(post => ({
+          id: `${post.id}-high-risk`,
+          type: 'high-risk' as const,
+          postId: post.id,
+          title: post.title || post.content.substring(0, 100),
+          priority: 'high' as const,
+          createdAt: post.created_at,
+          status: 'pending' as const,
+          post: post,
+        }));
+
+      // Fact-check pending (has fact_check_data but status is unverified)
+      const factCheckPending = allPosts
+        .filter(post => post.fact_check_data?.truth_status === 'unverified')
+        .slice(0, 15)
+        .map(post => ({
+          id: `${post.id}-fact-check`,
+          type: 'fact-check' as const,
+          postId: post.id,
+          title: post.title || post.content.substring(0, 100),
+          priority: 'high' as const,
+          createdAt: post.created_at,
+          status: 'pending' as const,
+          post: post,
+        }));
+
+      // Response needed (negative sentiment, high engagement)
+      const responseNeeded = allPosts
+        .filter(post => post.sentiment === 'negative' && (post.likes_count + post.comments_count + post.shares_count) > 10)
+        .slice(0, 15)
+        .map(post => ({
+          id: `${post.id}-response`,
+          type: 'response' as const,
+          postId: post.id,
+          title: post.title || post.content.substring(0, 100),
+          priority: 'medium' as const,
+          createdAt: post.created_at,
+          status: 'pending' as const,
+          post: post,
+        }));
+
+      // Critical alerts (high risk + negative sentiment)
+      const criticalAlerts = allPosts
+        .filter(post => (post.risk_score || 0) >= 8 && post.sentiment === 'negative')
+        .slice(0, 10)
+        .map(post => ({
+          id: `${post.id}-critical`,
+          type: 'critical' as const,
+          postId: post.id,
+          title: post.title || post.content.substring(0, 100),
+          priority: 'high' as const,
+          createdAt: post.created_at,
+          status: 'pending' as const,
+          post: post,
+        }));
+
+      teamQueueItems.push(...highRiskPosts, ...factCheckPending, ...responseNeeded, ...criticalAlerts);
+
+      // Sort by priority and date
+      teamQueueItems.sort((a, b) => {
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      setTeamQueue(teamQueueItems);
+    } catch (error) {
+      console.error('Error loading team queue:', error);
+      setTeamQueue([]);
+    } finally {
+      setTeamQueueLoading(false);
     }
   };
 
@@ -510,7 +616,38 @@ export const RepuShield = () => {
                 </div>
               </div>
             )}
-            
+
+            {/* Dashboard View Toggle */}
+            <div className="flex items-center justify-center">
+              <div className="inline-flex items-center bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+                <button
+                  onClick={() => setDashboardView('principal')}
+                  className={`flex items-center space-x-2 px-6 py-2.5 rounded-md text-sm font-medium transition-all ${
+                    dashboardView === 'principal'
+                      ? 'bg-[#1F9D8A] text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <Briefcase size={16} />
+                  <span>Principal</span>
+                </button>
+                <button
+                  onClick={() => setDashboardView('team')}
+                  className={`flex items-center space-x-2 px-6 py-2.5 rounded-md text-sm font-medium transition-all ${
+                    dashboardView === 'team'
+                      ? 'bg-[#1F9D8A] text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <Users size={16} />
+                  <span>Team</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Principal Dashboard View */}
+            {dashboardView === 'principal' && (
+              <>
             {/* Summary Row */}
             <section className="flex justify-center">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
@@ -855,7 +992,11 @@ export const RepuShield = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={ingestionData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                        <XAxis dataKey="date" tick={{ fill: '#6B7280', fontSize: 11 }} />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fill: '#6B7280', fontSize: ingestionRange === 'quarter' ? 12 : 11 }} 
+                          interval={ingestionRange === 'quarter' ? 0 : 'preserveStartEnd'}
+                        />
                         <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} />
                         <Tooltip
                           contentStyle={{
@@ -879,7 +1020,7 @@ export const RepuShield = () => {
 
             {/* Uttarakhand Heat Map */}
             <section className="mt-6">
-              <UttarakhandHeatMap />
+              <UttarakhandHeatMap viewMode="principal" />
             </section>
 
             {/* Bottom Grid */}
@@ -1029,6 +1170,153 @@ export const RepuShield = () => {
                 </div>
               </div>
             </div>
+            </>
+            )}
+
+            {/* Team Dashboard View */}
+            {dashboardView === 'team' && (
+              <div className="space-y-6">
+                {/* Team Queue Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">High-Risk Posts</p>
+                        <p className="text-2xl font-bold text-red-600 mt-1">
+                          {teamQueue.filter(item => item.type === 'high-risk').length}
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+                        <ShieldAlert className="text-red-600" size={24} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Fact-Check Pending</p>
+                        <p className="text-2xl font-bold text-yellow-600 mt-1">
+                          {teamQueue.filter(item => item.type === 'fact-check').length}
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-yellow-50 rounded-lg flex items-center justify-center">
+                        <AlertTriangle className="text-yellow-600" size={24} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Response Needed</p>
+                        <p className="text-2xl font-bold text-blue-600 mt-1">
+                          {teamQueue.filter(item => item.type === 'response').length}
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <MessageSquare className="text-blue-600" size={24} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Critical Alerts</p>
+                        <p className="text-2xl font-bold text-purple-600 mt-1">
+                          {teamQueue.filter(item => item.type === 'critical').length}
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                        <AlertTriangle className="text-purple-600" size={24} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Items List */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <div className="p-6 border-b border-gray-200">
+                    <h3 className="text-lg font-bold">Action Items Queue</h3>
+                    <p className="text-sm text-gray-500 mt-1">Items requiring team attention</p>
+                  </div>
+                  <div className="p-6">
+                    {teamQueueLoading ? (
+                      <div className="space-y-4">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="animate-pulse">
+                            <div className="h-20 bg-gray-100 rounded-lg"></div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : teamQueue.length > 0 ? (
+                      <div className="space-y-3">
+                        {teamQueue.slice(0, 20).map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 hover:border-[#1F9D8A] hover:shadow-sm transition-all cursor-pointer"
+                            onClick={() => window.open(item.post?.post_url || '#', '_blank')}
+                          >
+                            <div className={`w-2 h-2 rounded-full mt-2 ${
+                              item.priority === 'high' ? 'bg-red-500' :
+                              item.priority === 'medium' ? 'bg-yellow-500' :
+                              'bg-gray-400'
+                            }`}></div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                                  item.type === 'high-risk' ? 'bg-red-50 text-red-700' :
+                                  item.type === 'fact-check' ? 'bg-yellow-50 text-yellow-700' :
+                                  item.type === 'response' ? 'bg-blue-50 text-blue-700' :
+                                  'bg-purple-50 text-purple-700'
+                                }`}>
+                                  {item.type === 'high-risk' ? 'High Risk' :
+                                   item.type === 'fact-check' ? 'Fact-Check' :
+                                   item.type === 'response' ? 'Response Needed' :
+                                   'Critical'}
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  {new Date(item.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-700 line-clamp-2">{item.title}</p>
+                              {item.post && (
+                                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                  <span>Platform: {item.post.platform}</span>
+                                  {item.post.risk_score && (
+                                    <span>Risk: {item.post.risk_score}/10</span>
+                                  )}
+                                  {item.post.sentiment && (
+                                    <span className={`${
+                                      item.post.sentiment === 'negative' ? 'text-red-600' :
+                                      item.post.sentiment === 'positive' ? 'text-green-600' :
+                                      'text-gray-500'
+                                    }`}>
+                                      {item.post.sentiment}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <button className="text-gray-400 hover:text-[#1F9D8A] p-1">
+                              <ChevronRight size={20} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-gray-400">
+                        <Users size={48} className="mx-auto mb-4 opacity-50" />
+                        <p className="text-sm">No action items at this time</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Uttarakhand Heat Map - Team View */}
+                <section className="mt-6">
+                  <UttarakhandHeatMap viewMode="team" />
+                </section>
+              </div>
+            )}
           </div>
           </div>}
 
