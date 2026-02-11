@@ -110,12 +110,10 @@ const getDistrictAnalysis = (district: string, sentiment: { total: number; posit
   };
 };
 
-// Color gradient function - returns color based on mention count with smooth transition
-const getColor = (count: number): string => {
-  const maxCount = Math.max(...Object.values(MOCK_MENTION_DATA));
-  const minCount = Math.min(...Object.values(MOCK_MENTION_DATA));
-  const range = maxCount - minCount;
-  let normalized = range > 0 ? (count - minCount) / range : 0;
+// Color gradient function - returns color based on negative sentiment count with smooth transition
+const getColor = (negativeCount: number, minNegative: number, maxNegative: number): string => {
+  const range = maxNegative - minNegative;
+  let normalized = range > 0 ? (negativeCount - minNegative) / range : 0;
   
   // Apply easing function for smoother transition (ease-in-out cubic)
   normalized = normalized < 0.5 
@@ -212,9 +210,16 @@ export const UttarakhandHeatMap: React.FC = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isModalOpen]);
 
-  // Get max and min for legend
-  const maxCount = Math.max(...Object.values(MOCK_MENTION_DATA));
-  const minCount = Math.min(...Object.values(MOCK_MENTION_DATA));
+  // Calculate negative sentiment for all districts to get min/max for color scaling
+  const districtNegativeSentiments: Record<string, number> = {};
+  Object.keys(MOCK_MENTION_DATA).forEach(district => {
+    const total = MOCK_MENTION_DATA[district];
+    const sentiment = getDistrictSentiment(district, total);
+    districtNegativeSentiments[district] = sentiment.negative;
+  });
+  
+  const maxNegative = Math.max(...Object.values(districtNegativeSentiments));
+  const minNegative = Math.min(...Object.values(districtNegativeSentiments));
 
   const selectedMetrics = selectedDistrict 
     ? getDistrictSentiment(selectedDistrict, MOCK_MENTION_DATA[selectedDistrict] || 0)
@@ -226,8 +231,8 @@ export const UttarakhandHeatMap: React.FC = () => {
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
       <div className="mb-6">
-        <h3 className="text-lg font-bold mb-1">Uttarakhand Mentions Heat Map</h3>
-        <p className="text-sm text-gray-500">Mention distribution across districts</p>
+        <h3 className="text-lg font-bold mb-1">Uttarakhand Negative Sentiment Heat Map</h3>
+        <p className="text-sm text-gray-500">Negative sentiment distribution across districts.</p>
       </div>
 
       <div className="relative" ref={mapContainerRef}>
@@ -285,30 +290,31 @@ export const UttarakhandHeatMap: React.FC = () => {
                     const districtName = geo.properties.district || geo.properties.NAME_2 || geo.properties.name;
                     const total = MOCK_MENTION_DATA[districtName] || 0;
                     const sentiment = getDistrictSentiment(districtName, total);
+                    const negativeCount = sentiment.negative;
                   
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
-                      fill={getColor(total)}
+                      fill={getColor(negativeCount, minNegative, maxNegative)}
                       stroke="#FFFFFF"
                       strokeWidth={1}
                       style={{
                         default: {
-                          fill: getColor(total),
+                          fill: getColor(negativeCount, minNegative, maxNegative),
                           stroke: '#FFFFFF',
                           strokeWidth: 1,
                           outline: 'none',
                         },
                         hover: {
-                          fill: getColor(total),
+                          fill: getColor(negativeCount, minNegative, maxNegative),
                           stroke: '#1F9D8A',
                           strokeWidth: 2,
                           outline: 'none',
                           cursor: 'pointer',
                         },
                         pressed: {
-                          fill: getColor(total),
+                          fill: getColor(negativeCount, minNegative, maxNegative),
                           stroke: '#1F9D8A',
                           strokeWidth: 2,
                           outline: 'none',
@@ -508,37 +514,41 @@ export const UttarakhandHeatMap: React.FC = () => {
       {/* Legend */}
       <div className="mt-6 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <span className="text-xs text-gray-600 font-medium">Low</span>
+          <span className="text-xs text-gray-600 font-medium">Low Negative</span>
           <div className="flex items-center space-x-1">
             {[0, 0.25, 0.5, 0.75, 1].map((value) => {
-              const count = Math.round(minCount + (maxCount - minCount) * value);
+              const negativeCount = Math.round(minNegative + (maxNegative - minNegative) * value);
               return (
                 <div
                   key={value}
                   className="w-8 h-4 rounded"
-                  style={{ backgroundColor: getColor(count) }}
+                  style={{ backgroundColor: getColor(negativeCount, minNegative, maxNegative) }}
                 />
               );
             })}
           </div>
-          <span className="text-xs text-gray-600 font-medium">High</span>
+          <span className="text-xs text-gray-600 font-medium">High Negative</span>
         </div>
         <div className="text-xs text-gray-500">
-          Range: {minCount.toLocaleString()} - {maxCount.toLocaleString()} mentions
+          Range: {minNegative.toLocaleString()} - {maxNegative.toLocaleString()} negative mentions
         </div>
       </div>
 
       {/* District List */}
       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
         {Object.entries(MOCK_MENTION_DATA)
-          .sort(([, a], [, b]) => b - a)
-          .map(([district, count]) => (
+          .map(([district, total]) => {
+            const sentiment = getDistrictSentiment(district, total);
+            return { district, negative: sentiment.negative };
+          })
+          .sort((a, b) => b.negative - a.negative)
+          .map(({ district, negative }) => (
             <div
               key={district}
               className="flex items-center justify-between p-2 bg-gray-50 rounded"
             >
               <span className="text-gray-700 font-medium truncate">{district}</span>
-              <span className="text-[#1F9D8A] font-bold ml-2">{count}</span>
+              <span className="text-rose-600 font-bold ml-2">{negative}</span>
             </div>
           ))}
       </div>
